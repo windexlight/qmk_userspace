@@ -1,0 +1,2 @@
+#define CAPS_WORD_IDLE_TIMEOUT 0
+#define TAPPING_TERM 300
