@@ -1,4 +1,11 @@
 CompileFlags:
-  Add: [-Wno-unknown-attributes, -Wno-maybe-uninitialized, -Wno-unknown-warning-option]
+  Add: [-Wno-unknown-attributes, -Wno-maybe-uninitialized, -Wno-unknown-warning-option,
+      "-target", "arm-none-eabi",
+      "-mcpu=cortex-m0plus",
+      "-mthumb",
+      "-D__clang__",
+      "-D__GNUC__=9",
+      "-D__ARM_ARCH_6M__"   # for RP2040 (Cortex-M0+)
+  ]
   Remove: [-W*, -mmcu=*, -mcpu=*, -mfpu=*, -mfloat-abi=*, -mno-unaligned-access, -mno-thumb-interwork, -mcall-prologues, -D__has_include*]
   Compiler: clang

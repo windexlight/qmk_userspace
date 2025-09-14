@@ -4,7 +4,10 @@
 #include "action.h"
 #include "action_util.h"
 #include "keyboard.h"
+#include "progmem.h"
+#include "raw_hid.h"
 #include "timer.h"
+#include "usb_descriptor.h"
 #include QMK_KEYBOARD_H
 
 void clear_osm_mods(void);
@@ -59,14 +62,22 @@ static uint32_t last_mod_time[EX_NUM_MODS];
 static uint16_t ex_osm_keys[EX_NUM_OSM_KEYS];
 static uint8_t ex_osm_key_count = 0;
 
+extern matrix_row_t matrix[MATRIX_ROWS];
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    static uint8_t raw_hid_report[RAW_EPSIZE];
+    static uint8_t active_layer = 0;
+#ifdef CONSOLE_ENABLE
+    uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
+#endif
+    bool ret = true;
     if (keycode >= EX_LAYER && keycode <= EX_LAYER_MAX) {
         uint8_t layer = keycode - EX_LAYER;
         if (record->event.pressed) {
             if (stack_size < sizeof(layer_stack)) {
                 layer_stack[stack_size++] = layer;
             }
-            layer_move(layer);
+            active_layer = layer;
         } else {
             for (uint8_t i = 0; i < stack_size; i++) {
                 if (layer_stack[i] == layer) {
@@ -78,12 +89,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             if (stack_size > 0) {
-                layer_move(layer_stack[stack_size-1]);
+                active_layer = layer_stack[stack_size-1];
             } else {
-                layer_move(0);
+                active_layer = 0;
             }
         }
-        return false;
+        layer_move(active_layer);
+        ret = false;
     } else if (keycode >= EX_ONE_SHOT_MOD && keycode <= EX_ONE_SHOT_MOD_MAX) {
         uint8_t mod = keycode - EX_ONE_SHOT_MOD;
         uint8_t code = EX_MOD(mod);
@@ -101,12 +113,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             ex_mod_bits &= ~bit;
         }
-        return false;
+        ret = false;
     } else if (keycode == CLR_OSM) {
         ex_osm_key_count = 0;
         clear_osm_mods();
         send_keyboard_report();
-        return false;
+        ret = false;
     } else if (ex_osm_bits > 0) {
         if (record->event.pressed) {
             if (ex_osm_key_count < sizeof(ex_osm_keys)) {
@@ -127,7 +139,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
     }
-    return true;
+#if MATRIX_ROWS > RAW_EPSIZE-2
+    #error "Matrix too big for raw HID report size"
+#endif
+    raw_hid_report[0] = active_layer;
+    raw_hid_report[1] = MATRIX_ROWS;
+    memcpy(raw_hid_report+2, matrix, MATRIX_ROWS);
+    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    return ret;
 }
 
 void clear_osm_mods() {
@@ -172,7 +191,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_ESC,   KC_Q,  KC_W,  KC_F,  KC_P,  KC_B,      KC_J,  KC_L,  KC_U,    KC_Y,   KC_QUOT, KC_BSPC,
         TG(_MSE), KC_A,  KC_R,  KC_S,  KC_T,  KC_G,      KC_M,  KC_N,  KC_E,    KC_I,   KC_O,    KC_ENT,
         CLR_OSM,  KC_Z,  KC_X,  KC_C,  KC_D,  KC_V,      KC_K,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_DEL,
-                   EX_MO(_NUM), KC_LSFT, EX_MO(_EXT),      EX_MO(_SYM), KC_SPC, EX_MO(_FNC)
+                   EX_MO(_NUM), EX_MO(_EXT), KC_LSFT,      EX_MO(_SYM), KC_SPC, EX_MO(_FNC)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
@@ -184,13 +203,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY,   KC_MNXT, KC_BRIU,      KC_F12, KC_F7, KC_F8, KC_F9, KC_SCRL, KC_TRNS,
         KC_NO,   _LALT,   _LGUI,   _LSFT,     _LCTL,   KC_BRID,      KC_F11, KC_F4, KC_F5, KC_F6, KC_NO,   KC_TRNS,
         KC_NO,  KC_MUTE, KC_VOLD, RCS(KC_C), KC_VOLU, RCS(KC_V),    KC_F10, KC_F1, KC_F2, KC_F3, KC_NO,   KC_TRNS,
-                                       KC_TRNS, KC_SPC, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
+                                       KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_SYM] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_EXLM, KC_AT, KC_HASH, KC_DLR,  KC_PERC,      KC_EQL,  KC_GRV,  KC_COLN, KC_SCLN, KC_PLUS, KC_TRNS,
         KC_NO,   _LALT,   _LGUI, _LSFT,   _LCTL,   KC_CIRC,      KC_ASTR, KC_LPRN, KC_LCBR, KC_LBRC, KC_MINS, KC_TRNS,
         KC_NO,   CW_TOGG, KC_NO, KC_BSLS, KC_PIPE, KC_AMPR,      KC_TILD, KC_RPRN, KC_RCBR, KC_RBRC, KC_UNDS, KC_TRNS,
-                                 KC_TRNS, KC_SPC, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
+                                 KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO, KC_NO,  KC_NO,  KC_DOT,  KC_NUM,      KC_EQL,  KC_7, KC_8, KC_9, KC_0, KC_TRNS,
