@@ -8,9 +8,14 @@
 #include "raw_hid.h"
 #include "timer.h"
 #include "usb_descriptor.h"
+#include <assert.h>
 #include QMK_KEYBOARD_H
 
+uint8_t extract_mod_bits(uint16_t code);
 void clear_osm_mods(void);
+void send_raw_hid_report(void);
+void register_code_custom(uint16_t code);
+void unregister_code_custom(uint16_t code);
 
 enum layers {
   _COLEMAK_DH,
@@ -42,6 +47,7 @@ enum custom_keycodes {
     EX_ONE_SHOT_MOD,
     EX_ONE_SHOT_MOD_MAX = EX_ONE_SHOT_MOD + EX_NUM_MODS - 1,
     CLR_OSM,
+    SUPP_REP,
 };
 
 #define EX_MO(n) (EX_LAYER + (n))
@@ -61,12 +67,13 @@ static uint8_t ex_mod_bits = 0;
 static uint32_t last_mod_time[EX_NUM_MODS];
 static uint16_t ex_osm_keys[EX_NUM_OSM_KEYS];
 static uint8_t ex_osm_key_count = 0;
+static uint8_t raw_hid_report[RAW_EPSIZE];
+static uint8_t active_layer = 0;
+static bool suppress_real_reports = false;
 
 extern matrix_row_t matrix[MATRIX_ROWS];
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    static uint8_t raw_hid_report[RAW_EPSIZE];
-    static uint8_t active_layer = 0;
 #ifdef CONSOLE_ENABLE
     uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
 #endif
@@ -101,23 +108,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         uint8_t code = EX_MOD(mod);
         uint8_t bit = MOD_BIT(code);
         if (record->event.pressed) {
-            register_code(code);
-            send_keyboard_report();
+            register_code_custom(code);
+            //send_keyboard_report(); // register_code actually sends a keyboard report
             ex_mod_bits |= bit;
             ex_osm_bits |= bit;
             last_mod_time[mod] = timer_read32();
         } else {
             if ((ex_osm_bits & bit) == 0) {
-                unregister_code(code);
-                send_keyboard_report();
+                unregister_code_custom(code);
+                //send_keyboard_report(); // unregister_code actually sends a keyboard report
             }
             ex_mod_bits &= ~bit;
         }
         ret = false;
     } else if (keycode == CLR_OSM) {
-        ex_osm_key_count = 0;
-        clear_osm_mods();
-        send_keyboard_report();
+        if (record->event.pressed) {
+            ex_osm_key_count = 0;
+            clear_osm_mods();
+            // send_keyboard_report(); // unregister_code actually sends a keyboard report
+        }
+        ret = false;
+    } else if (keycode == SUPP_REP) {
+        if (record->event.pressed) {
+            suppress_real_reports = !suppress_real_reports;
+        }
         ret = false;
     } else if (ex_osm_bits > 0) {
         if (record->event.pressed) {
@@ -139,14 +153,95 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
     }
-#if MATRIX_ROWS > RAW_EPSIZE-2
-    #error "Matrix too big for raw HID report size"
-#endif
-    raw_hid_report[0] = active_layer;
-    raw_hid_report[1] = MATRIX_ROWS;
-    memcpy(raw_hid_report+2, matrix, MATRIX_ROWS);
-    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    if (suppress_real_reports) {
+        if (ret == true) {
+            ret = false;
+            if (record->event.pressed) {
+                register_code_custom(keycode);
+            } else {
+                unregister_code_custom(keycode);
+            }
+        }
+        send_raw_hid_report();
+    }
     return ret;
+}
+
+void send_raw_hid_report() {
+    static_assert(sizeof(report_nkro_t) == RAW_EPSIZE, "report_nkro_t does not match raw HID report size");
+    report_nkro_t report;
+    report.report_id = REPORT_ID_NKRO;
+    report.mods = get_mods() | get_weak_mods();
+#ifdef NKRO_ENABLE
+    if (host_can_send_nkro() && keymap_config.nkro) {
+        // report.mods = nkro_report->mods;
+        memcpy(&report.bits, &nkro_report->bits, sizeof(report.bits));
+        // raw_hid_report[0] = 255;
+        // raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    } else
+#endif
+    {
+        // report.mods = keyboard_report->mods;
+        memset(&report.bits, 0, sizeof(report.bits));
+    }
+    uint8_t code;
+    for (int i=0; i<KEYBOARD_REPORT_KEYS; i++) {
+        code = keyboard_report->keys[i];
+        if (code != 0) {
+            if ((code >> 3) < NKRO_REPORT_BITS) {
+                report.bits[code >> 3] |= 1 << (code & 7);
+            }
+        }
+    }
+    raw_hid_send((uint8_t*)&report, RAW_EPSIZE);
+
+    static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
+    static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
+    static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
+    static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
+    raw_hid_report[0] = 0; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
+    raw_hid_report[1] = active_layer;
+    raw_hid_report[2] = MATRIX_ROWS;
+    raw_hid_report[3] = MATRIX_COLS;
+    memcpy(raw_hid_report+4, matrix, sizeof(matrix));
+    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+}
+
+
+void register_code_custom(uint16_t code) {
+    if (suppress_real_reports) {
+        if (code <= QK_MODS_MAX) {
+            add_weak_mods(extract_mod_bits(code));
+            code &= 0xFF;
+            if (code == KC_NO) {
+                return;
+            } else if (IS_BASIC_KEYCODE(code)) {
+                add_key(code);
+            } else if (IS_MODIFIER_KEYCODE(code)) {
+                add_mods(MOD_BIT(code));
+            }
+        }
+    } else {
+        register_code(code);
+    }
+}
+
+void unregister_code_custom(uint16_t code) {
+    if (suppress_real_reports) {
+        if (code <= QK_MODS_MAX) {
+            del_weak_mods(extract_mod_bits(code));
+            code &= 0xFF;
+            if (code == KC_NO) {
+                return;
+            } else if (IS_BASIC_KEYCODE(code)) {
+                del_key(code);
+            } else if (IS_MODIFIER_KEYCODE(code)) {
+                del_mods(MOD_BIT(code));
+            }
+        }
+    } else {
+        unregister_code(code);
+    }
 }
 
 void clear_osm_mods() {
@@ -155,7 +250,7 @@ void clear_osm_mods() {
         bit = MOD_BIT(mod);
         if ((ex_osm_bits & bit) > 0) {
             if ((ex_mod_bits & bit) == 0) {
-                unregister_code(EX_MOD(mod));
+                unregister_code_custom(EX_MOD(mod));
             }
         }
     }
@@ -174,14 +269,15 @@ void housekeeping_task_user() {
                 if (timer_elapsed32(last_mod_time[mod]) > timeout) {
                     ex_osm_bits &= ~bit;
                     if (!holding) {
-                        unregister_code(EX_MOD(mod));
+                        unregister_code_custom(EX_MOD(mod));
                         need_report = true;
                     }
                 }
             }
         }
-        if (need_report) {
-            send_keyboard_report();
+        if (need_report && suppress_real_reports) {
+            send_raw_hid_report();
+            //send_keyboard_report(); // unregister_code actually sends a keyboard report
         }
     }
 }
@@ -196,7 +292,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_EXT] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
         KC_NO,   _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
-        KC_NO,   _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
+        SUPP_REP,_UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FNC] = LAYOUT_split_3x6_3(
