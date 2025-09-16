@@ -8,14 +8,15 @@
 #include "raw_hid.h"
 #include "timer.h"
 #include "usb_descriptor.h"
+#include "host.h"
 #include <assert.h>
 #include QMK_KEYBOARD_H
 
-uint8_t extract_mod_bits(uint16_t code);
 void clear_osm_mods(void);
 void send_raw_hid_report(void);
-void register_code_custom(uint16_t code);
-void unregister_code_custom(uint16_t code);
+void send_keyboard_user(report_keyboard_t* report);
+void send_nkro_user(report_nkro_t* report);
+
 
 enum layers {
   _COLEMAK_DH,
@@ -71,7 +72,18 @@ static uint8_t raw_hid_report[RAW_EPSIZE];
 static uint8_t active_layer = 0;
 static bool suppress_real_reports = false;
 
+static report_nkro_t nkro_report_user = {
+    .report_id = REPORT_ID_NKRO,
+    .mods = 0,
+    .bits = {0},
+};
+
+void (*send_keyboard_real)(report_keyboard_t *) = NULL;
+void (*send_nkro_real)(report_nkro_t *) = NULL;
+
 extern matrix_row_t matrix[MATRIX_ROWS];
+
+extern host_driver_t chibios_driver;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #ifdef CONSOLE_ENABLE
@@ -108,15 +120,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         uint8_t code = EX_MOD(mod);
         uint8_t bit = MOD_BIT(code);
         if (record->event.pressed) {
-            register_code_custom(code);
-            //send_keyboard_report(); // register_code actually sends a keyboard report
+            register_code(code);
             ex_mod_bits |= bit;
             ex_osm_bits |= bit;
             last_mod_time[mod] = timer_read32();
         } else {
             if ((ex_osm_bits & bit) == 0) {
-                unregister_code_custom(code);
-                //send_keyboard_report(); // unregister_code actually sends a keyboard report
+                unregister_code(code);
             }
             ex_mod_bits &= ~bit;
         }
@@ -125,7 +135,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         if (record->event.pressed) {
             ex_osm_key_count = 0;
             clear_osm_mods();
-            // send_keyboard_report(); // unregister_code actually sends a keyboard report
         }
         ret = false;
     } else if (keycode == SUPP_REP) {
@@ -153,47 +162,47 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
     }
-    if (suppress_real_reports) {
-        if (ret == true) {
-            ret = false;
-            if (record->event.pressed) {
-                register_code_custom(keycode);
-            } else {
-                unregister_code_custom(keycode);
+    return ret;
+}
+
+void keyboard_post_init_user(void) {
+    // TODO - This is probably brittle to use chibios_driver, check here if breaks with future changes
+    host_driver_t *driver = &chibios_driver; //host_get_driver(); <- can't use here, too early
+    send_keyboard_real = driver->send_keyboard;
+    send_nkro_real = driver->send_nkro;
+    driver->send_keyboard = send_keyboard_user;
+    driver->send_nkro = send_nkro_user;
+}
+
+void send_keyboard_user(report_keyboard_t* report) {
+    if (!suppress_real_reports) {
+        (*send_keyboard_real)(report);
+    }
+    nkro_report_user.mods = report->mods;
+    memset(&nkro_report_user.bits, 0, sizeof(nkro_report_user.bits));
+    uint8_t code;
+    for (int i=0; i<KEYBOARD_REPORT_KEYS; i++) {
+        code = report->keys[i];
+        if (code != 0) {
+            if ((code >> 3) < NKRO_REPORT_BITS) {
+                nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
             }
         }
-        send_raw_hid_report();
     }
-    return ret;
+    send_raw_hid_report();
+}
+
+void send_nkro_user(report_nkro_t* report) {
+    if (!suppress_real_reports) {
+        (*send_nkro_real)(report);
+    }
+    memcpy(&nkro_report_user, report, sizeof(report_nkro_t));
+    send_raw_hid_report();
 }
 
 void send_raw_hid_report() {
     static_assert(sizeof(report_nkro_t) == RAW_EPSIZE, "report_nkro_t does not match raw HID report size");
-    report_nkro_t report;
-    report.report_id = REPORT_ID_NKRO;
-    report.mods = get_mods() | get_weak_mods();
-#ifdef NKRO_ENABLE
-    if (host_can_send_nkro() && keymap_config.nkro) {
-        // report.mods = nkro_report->mods;
-        memcpy(&report.bits, &nkro_report->bits, sizeof(report.bits));
-        // raw_hid_report[0] = 255;
-        // raw_hid_send(raw_hid_report, RAW_EPSIZE);
-    } else
-#endif
-    {
-        // report.mods = keyboard_report->mods;
-        memset(&report.bits, 0, sizeof(report.bits));
-    }
-    uint8_t code;
-    for (int i=0; i<KEYBOARD_REPORT_KEYS; i++) {
-        code = keyboard_report->keys[i];
-        if (code != 0) {
-            if ((code >> 3) < NKRO_REPORT_BITS) {
-                report.bits[code >> 3] |= 1 << (code & 7);
-            }
-        }
-    }
-    raw_hid_send((uint8_t*)&report, RAW_EPSIZE);
+    raw_hid_send((uint8_t*)&nkro_report_user, RAW_EPSIZE);
 
     static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
     static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
@@ -207,50 +216,13 @@ void send_raw_hid_report() {
     raw_hid_send(raw_hid_report, RAW_EPSIZE);
 }
 
-
-void register_code_custom(uint16_t code) {
-    if (suppress_real_reports) {
-        if (code <= QK_MODS_MAX) {
-            add_weak_mods(extract_mod_bits(code));
-            code &= 0xFF;
-            if (code == KC_NO) {
-                return;
-            } else if (IS_BASIC_KEYCODE(code)) {
-                add_key(code);
-            } else if (IS_MODIFIER_KEYCODE(code)) {
-                add_mods(MOD_BIT(code));
-            }
-        }
-    } else {
-        register_code(code);
-    }
-}
-
-void unregister_code_custom(uint16_t code) {
-    if (suppress_real_reports) {
-        if (code <= QK_MODS_MAX) {
-            del_weak_mods(extract_mod_bits(code));
-            code &= 0xFF;
-            if (code == KC_NO) {
-                return;
-            } else if (IS_BASIC_KEYCODE(code)) {
-                del_key(code);
-            } else if (IS_MODIFIER_KEYCODE(code)) {
-                del_mods(MOD_BIT(code));
-            }
-        }
-    } else {
-        unregister_code(code);
-    }
-}
-
 void clear_osm_mods() {
     uint8_t bit;
     for (uint8_t mod = 0; mod < EX_NUM_MODS; mod++) {
         bit = MOD_BIT(mod);
         if ((ex_osm_bits & bit) > 0) {
             if ((ex_mod_bits & bit) == 0) {
-                unregister_code_custom(EX_MOD(mod));
+                unregister_code(EX_MOD(mod));
             }
         }
     }
@@ -259,7 +231,6 @@ void clear_osm_mods() {
 
 void housekeeping_task_user() {
     uint8_t bit;
-    bool need_report = false;
     if (ex_osm_bits > 0 && ex_osm_key_count == 0) {
         for (uint8_t mod = 0; mod < EX_NUM_MODS; mod++) {
             bit = MOD_BIT(mod);
@@ -269,15 +240,10 @@ void housekeeping_task_user() {
                 if (timer_elapsed32(last_mod_time[mod]) > timeout) {
                     ex_osm_bits &= ~bit;
                     if (!holding) {
-                        unregister_code_custom(EX_MOD(mod));
-                        need_report = true;
+                        unregister_code(EX_MOD(mod));
                     }
                 }
             }
-        }
-        if (need_report && suppress_real_reports) {
-            send_raw_hid_report();
-            //send_keyboard_report(); // unregister_code actually sends a keyboard report
         }
     }
 }
