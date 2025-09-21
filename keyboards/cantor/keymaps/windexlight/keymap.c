@@ -16,6 +16,8 @@ void clear_osm_mods(void);
 void send_raw_hid_report(void);
 void send_keyboard_user(report_keyboard_t* report);
 void send_nkro_user(report_nkro_t* report);
+void send_extra_user(report_extra_t* report);
+uint8_t USAGE2KEYCODE(uint16_t usage);
 
 
 enum layers {
@@ -80,6 +82,7 @@ static report_nkro_t nkro_report_user = {
 
 void (*send_keyboard_real)(report_keyboard_t *) = NULL;
 void (*send_nkro_real)(report_nkro_t *) = NULL;
+void (*send_extra_real)(report_extra_t *) = NULL;
 
 extern matrix_row_t matrix[MATRIX_ROWS];
 
@@ -170,8 +173,10 @@ void keyboard_post_init_user(void) {
     host_driver_t *driver = &chibios_driver; //host_get_driver(); <- can't use here, too early
     send_keyboard_real = driver->send_keyboard;
     send_nkro_real = driver->send_nkro;
+    send_extra_real = driver->send_extra;
     driver->send_keyboard = send_keyboard_user;
     driver->send_nkro = send_nkro_user;
+    driver->send_extra = send_extra_user;
 }
 
 void send_keyboard_user(report_keyboard_t* report) {
@@ -197,6 +202,30 @@ void send_nkro_user(report_nkro_t* report) {
         (*send_nkro_real)(report);
     }
     memcpy(&nkro_report_user, report, sizeof(report_nkro_t));
+    send_raw_hid_report();
+}
+
+void send_extra_user(report_extra_t* report) {
+    if (!suppress_real_reports) {
+        (*send_extra_real)(report);
+    }
+    if (report->usage == 0) {
+        for (int code = KC_SYSTEM_POWER; code<=KC_SYSTEM_WAKE; code++) {
+            if ((code >> 3) < NKRO_REPORT_BITS) {
+                nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
+            }
+        }
+        for (int code = KC_AUDIO_MUTE; code<=KC_LAUNCHPAD; code++) {
+            if ((code >> 3) < NKRO_REPORT_BITS) {
+                nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
+            }
+        }
+    } else {
+        int code = USAGE2KEYCODE(report->usage);
+        if ((code >> 3) < NKRO_REPORT_BITS) {
+            nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
+        }
+    }
     send_raw_hid_report();
 }
 
@@ -247,6 +276,75 @@ void housekeeping_task_user() {
         }
     }
 }
+
+uint8_t USAGE2KEYCODE(uint16_t usage) {
+    switch (usage) {
+        case SYSTEM_POWER_DOWN:
+            return KC_SYSTEM_POWER;
+        case SYSTEM_SLEEP:
+            return KC_SYSTEM_SLEEP;
+        case SYSTEM_WAKE_UP:
+            return KC_SYSTEM_WAKE;
+        case AUDIO_MUTE:
+            return KC_AUDIO_MUTE;
+        case AUDIO_VOL_UP:
+            return KC_AUDIO_VOL_UP;
+        case AUDIO_VOL_DOWN:
+            return KC_AUDIO_VOL_DOWN;
+        case TRANSPORT_NEXT_TRACK:
+            return KC_MEDIA_NEXT_TRACK;
+        case TRANSPORT_PREV_TRACK:
+            return KC_MEDIA_PREV_TRACK;
+        case TRANSPORT_FAST_FORWARD:
+            return KC_MEDIA_FAST_FORWARD;
+        case TRANSPORT_REWIND:
+            return KC_MEDIA_REWIND;
+        case TRANSPORT_STOP:
+            return KC_MEDIA_STOP;
+        case TRANSPORT_STOP_EJECT:
+            return KC_MEDIA_EJECT;
+        case TRANSPORT_PLAY_PAUSE:
+            return KC_MEDIA_PLAY_PAUSE;
+        case AL_CC_CONFIG:
+            return KC_MEDIA_SELECT;
+        case AL_EMAIL:
+            return KC_MAIL;
+        case AL_CALCULATOR:
+            return KC_CALCULATOR;
+        case AL_LOCAL_BROWSER:
+            return KC_MY_COMPUTER;
+        case AL_CONTROL_PANEL:
+            return KC_CONTROL_PANEL;
+        case AL_ASSISTANT:
+            return KC_ASSISTANT;
+        case AC_SEARCH:
+            return KC_WWW_SEARCH;
+        case AC_HOME:
+            return KC_WWW_HOME;
+        case AC_BACK:
+            return KC_WWW_BACK;
+        case AC_FORWARD:
+            return KC_WWW_FORWARD;
+        case AC_STOP:
+            return KC_WWW_STOP;
+        case AC_REFRESH:
+            return KC_WWW_REFRESH;
+        case BRIGHTNESS_UP:
+            return KC_BRIGHTNESS_UP;
+        case BRIGHTNESS_DOWN:
+            return KC_BRIGHTNESS_DOWN;
+        case AC_BOOKMARKS:
+            return KC_WWW_FAVORITES;
+        case AC_DESKTOP_SHOW_ALL_WINDOWS:
+            return KC_MISSION_CONTROL;
+        case AC_SOFT_KEY_LEFT:
+            return KC_LAUNCHPAD;
+        default:
+            return 0;
+    }
+}
+
+
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_COLEMAK_DH] = LAYOUT_split_3x6_3(
