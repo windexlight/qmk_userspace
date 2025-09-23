@@ -43,6 +43,7 @@ enum layers {
 #define EX_NUM_OSM_KEYS 32
 #define EX_MOD_HOLD_OSM_CLEAR_MS 500
 #define EX_OSM_TIMEOUT_MS 5000
+#define HEARTBEAT_TIMEOUT_MS 1500
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
@@ -50,7 +51,6 @@ enum custom_keycodes {
     EX_ONE_SHOT_MOD,
     EX_ONE_SHOT_MOD_MAX = EX_ONE_SHOT_MOD + EX_NUM_MODS - 1,
     CLR_OSM,
-    SUPP_REP,
 };
 
 #define EX_MO(n) (EX_LAYER + (n))
@@ -68,11 +68,13 @@ static uint8_t stack_size = 0;
 static uint8_t ex_osm_bits = 0;
 static uint8_t ex_mod_bits = 0;
 static uint32_t last_mod_time[EX_NUM_MODS];
+static uint32_t last_heartbeat_time = 0;
 static uint16_t ex_osm_keys[EX_NUM_OSM_KEYS];
 static uint8_t ex_osm_key_count = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
 static uint8_t active_layer = 0;
 static bool suppress_real_reports = false;
+static bool send_raw_hid_reports = false;
 
 static report_nkro_t nkro_report_user = {
     .report_id = REPORT_ID_NKRO,
@@ -140,11 +142,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             clear_osm_mods();
         }
         ret = false;
-    } else if (keycode == SUPP_REP) {
-        if (record->event.pressed) {
-            suppress_real_reports = !suppress_real_reports;
-        }
-        ret = false;
     } else if (ex_osm_bits > 0) {
         if (record->event.pressed) {
             if (ex_osm_key_count < sizeof(ex_osm_keys)) {
@@ -183,50 +180,56 @@ void send_keyboard_user(report_keyboard_t* report) {
     if (!suppress_real_reports) {
         (*send_keyboard_real)(report);
     }
-    nkro_report_user.mods = report->mods;
-    memset(&nkro_report_user.bits, 0, sizeof(nkro_report_user.bits));
-    uint8_t code;
-    for (int i=0; i<KEYBOARD_REPORT_KEYS; i++) {
-        code = report->keys[i];
-        if (code != 0) {
-            if ((code >> 3) < NKRO_REPORT_BITS) {
-                nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
+    if (send_raw_hid_reports) {
+        nkro_report_user.mods = report->mods;
+        memset(&nkro_report_user.bits, 0, sizeof(nkro_report_user.bits));
+        uint8_t code;
+        for (int i=0; i<KEYBOARD_REPORT_KEYS; i++) {
+            code = report->keys[i];
+            if (code != 0) {
+                if ((code >> 3) < NKRO_REPORT_BITS) {
+                    nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
+                }
             }
         }
+        send_raw_hid_report();
     }
-    send_raw_hid_report();
 }
 
 void send_nkro_user(report_nkro_t* report) {
     if (!suppress_real_reports) {
         (*send_nkro_real)(report);
     }
-    memcpy(&nkro_report_user, report, sizeof(report_nkro_t));
-    send_raw_hid_report();
+    if (send_raw_hid_reports) {
+        memcpy(&nkro_report_user, report, sizeof(report_nkro_t));
+        send_raw_hid_report();
+    }
 }
 
 void send_extra_user(report_extra_t* report) {
     if (!suppress_real_reports) {
         (*send_extra_real)(report);
     }
-    if (report->usage == 0) {
-        for (int code = KC_SYSTEM_POWER; code<=KC_SYSTEM_WAKE; code++) {
+    if (send_raw_hid_reports) {
+        if (report->usage == 0) {
+            for (int code = KC_SYSTEM_POWER; code<=KC_SYSTEM_WAKE; code++) {
+                if ((code >> 3) < NKRO_REPORT_BITS) {
+                    nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
+                }
+            }
+            for (int code = KC_AUDIO_MUTE; code<=KC_LAUNCHPAD; code++) {
+                if ((code >> 3) < NKRO_REPORT_BITS) {
+                    nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
+                }
+            }
+        } else {
+            int code = USAGE2KEYCODE(report->usage);
             if ((code >> 3) < NKRO_REPORT_BITS) {
-                nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
+                nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
             }
         }
-        for (int code = KC_AUDIO_MUTE; code<=KC_LAUNCHPAD; code++) {
-            if ((code >> 3) < NKRO_REPORT_BITS) {
-                nkro_report_user.bits[code >> 3] &= ~(1 << (code & 7));
-            }
-        }
-    } else {
-        int code = USAGE2KEYCODE(report->usage);
-        if ((code >> 3) < NKRO_REPORT_BITS) {
-            nkro_report_user.bits[code >> 3] |= 1 << (code & 7);
-        }
+        send_raw_hid_report();
     }
-    send_raw_hid_report();
 }
 
 void send_raw_hid_report() {
@@ -237,12 +240,26 @@ void send_raw_hid_report() {
     static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
     static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
     static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
-    raw_hid_report[0] = 0; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
+    raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
     raw_hid_report[1] = active_layer;
     raw_hid_report[2] = MATRIX_ROWS;
     raw_hid_report[3] = MATRIX_COLS;
     memcpy(raw_hid_report+4, matrix, sizeof(matrix));
     raw_hid_send(raw_hid_report, RAW_EPSIZE);
+}
+
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    if(data[0] == 0xBE) {
+        last_heartbeat_time = timer_read32();
+        send_raw_hid_reports = true;
+        suppress_real_reports = true;
+        memset(raw_hid_report, 0, sizeof(raw_hid_report));
+        raw_hid_report[1] = 0xEF;
+        raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    } else if (data[0] == 0xBF) {
+        send_raw_hid_reports = false;
+        suppress_real_reports = false;
+    }
 }
 
 void clear_osm_mods() {
@@ -274,6 +291,10 @@ void housekeeping_task_user() {
                 }
             }
         }
+    }
+    if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
+        send_raw_hid_reports = false;
+        suppress_real_reports = false;
     }
 }
 
@@ -356,7 +377,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_EXT] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
         KC_NO,   _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
-        SUPP_REP,_UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
+        KC_NO,   _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FNC] = LAYOUT_split_3x6_3(
