@@ -365,6 +365,40 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
     }
 }
 
+bool get_auto_shifted_key(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+# ifndef NO_AUTO_SHIFT_ALPHA
+        case AUTO_SHIFT_ALPHA:
+# endif
+# ifndef NO_AUTO_SHIFT_NUMERIC
+        case AUTO_SHIFT_NUMERIC:
+# endif
+# ifndef NO_AUTO_SHIFT_SPECIAL
+# ifndef NO_AUTO_SHIFT_TAB
+        case KC_TAB:
+#        endif
+# ifndef NO_AUTO_SHIFT_SYMBOLS
+        // case KC_MINUS:
+        // case KC_EQUAL:
+        // case KC_LEFT_BRACKET:
+        // case KC_RIGHT_BRACKET:
+        // case KC_BACKSLASH:
+        // case KC_NONUS_HASH:
+        // case KC_SEMICOLON:
+        case KC_QUOTE:
+        // case KC_GRAVE:
+        case KC_COMMA:
+        case KC_DOT:
+        case KC_SLASH:
+#        endif
+# endif
+# ifdef AUTO_SHIFT_ENTER
+        case KC_ENT:
+# endif
+            return true;
+    }
+    return get_custom_auto_shifted_key(keycode, record);
+}
 
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
