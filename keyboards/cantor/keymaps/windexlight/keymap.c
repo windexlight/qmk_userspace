@@ -208,6 +208,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         }
         ret = false;
     } else {
+        // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
+        // If alt repeating key A, E, I, O, U, Y with no mods other than Shift, set
+        // the last key to KC_N. Above, alternate repeat of KC_N is defined to be
+        // again KC_N. This way, either tapping alt repeat and then repeat (or
+        // equivalently double tapping alt repeat) is useful to type certain patterns
+        // without SFBs:
+        //
+        //   D <altrep> <rep> -> DYN (as in "dynamic")
+        //   O <altrep> <rep> -> OAN (as in "loan")
+        if (get_repeat_key_count() < 0 &&
+            ((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0 &&
+            (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
+            keycode == KC_O || keycode == KC_U || keycode == KC_Y)) {
+            set_last_keycode(KC_N);
+            set_last_mods(0);
+        }
         bool magic = true;
         if (!record->event.pressed) {
             magic = false;
@@ -234,6 +250,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 break;
             case UPDIR:
                 SEND_STRING_DELAY("../", TAP_CODE_DELAY);
+                break;
+            case KC_SPC:
+                // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
+                // When the Repeat key follows Space, it behaves as one-shot shift.
+                // TODO: This isn't working very well. Think it probably conflicts
+                // with my alternate one-shot mods, and also it's still sending a space,
+                // need to set ret = false, I think.
+                if (get_repeat_key_count() > 0) {
+                    if (record->event.pressed) {
+                        add_oneshot_mods(MOD_LSFT);
+                        register_mods(MOD_LSFT);
+                    } else {
+                        unregister_mods(MOD_LSFT);
+                    }
+                } else {
+                    magic = false;
+                }
                 break;
             default:
                 magic = false;
