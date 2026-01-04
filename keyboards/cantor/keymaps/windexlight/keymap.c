@@ -517,7 +517,7 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         KC_TAB,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_SLSH,
-        KC_BSPC, KC_S,  KC_T,  HRM_R, KC_D,  KC_Y,      KC_F,  KC_N,  HRM_E,   KC_A,   KC_I,    KC_MINS,
+        KC_BSPC, KC_S,  KC_T,  HRM_R, KC_D,  KC_Y,      KC_F,  KC_N,  HRM_E,   KC_A,   KC_I,    KC_DEL,
         KC_SCLN, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_QUOT, KC_ENT,
                              EX_MO(_NUM), QK_REP, EX_MO(_EXT),      EX_MO(_SYM), KC_SPC, EX_MO(_FNC)
     ),
