@@ -65,6 +65,20 @@ enum custom_keycodes {
     M_TMENT,
     M_UPDIR,
     M_NBSP,
+    M_BEFORE,
+    M_BECAUSE,
+    M_WOULD,
+    M_AND,
+    M_SP_AND,
+    M_FOR,
+    M_YOU,
+    M_ING,
+    M_JUST,
+    M_NION,
+    M_VER,
+    M_WHICH,
+    M_XES,
+    M_BUT,
     M_NOOP,
 };
 
@@ -164,6 +178,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         uint8_t layer = keycode - EX_LAYER;
         if (record->event.pressed) {
             if (layer == _EXT) {
+                // Why does doing oneshot ctrl often result in stuck scroll lock?
                 if (!host_keyboard_led_state().scroll_lock) {
                     tap_code(KC_SCRL);
                 }
@@ -234,6 +249,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             set_last_keycode(KC_N);
             set_last_mods(0);
         }
+        // TODO -- set repeat key overrides here
         bool magic = true;
         if (!record->event.pressed) {
             magic = false;
@@ -250,6 +266,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case M_INCLUDE: SEND_STRING_DELAY(/*#*/"include ", TAP_CODE_DELAY); break;
             case M_EQEQ:    SEND_STRING_DELAY(/*=*/"==", TAP_CODE_DELAY); break;
             case M_NBSP:    SEND_STRING_DELAY(/*&*/"nbsp;", TAP_CODE_DELAY); break;
+            case M_BEFORE:  MAGIC_STRING(/*b*/"efore"); break;
+            case M_BECAUSE: MAGIC_STRING(/*b*/"ecause"); break;
+            case M_WOULD:   MAGIC_STRING(/*w*/"ould"); break;
+            case M_AND:     MAGIC_STRING(/*a*/"nd"); break;
+            case M_SP_AND:  MAGIC_STRING(/*,*/" and"); break;
+            case M_FOR:     MAGIC_STRING(/*f*/"or"); break;
+            case M_YOU:     MAGIC_STRING(/*y*/"ou"); break;
+            case M_ING:     MAGIC_STRING(/*i*/"ng"); break;
+            case M_JUST:    MAGIC_STRING(/*j*/"ust"); break;
+            case M_NION:    MAGIC_STRING(/*n*/"ion"); break;
+            case M_VER:     MAGIC_STRING(/*v*/"er"); break;
+            case M_WHICH:   MAGIC_STRING(/*w*/"hich"); break;
+            case M_XES:     MAGIC_STRING(/*x*/"es"); break;
+            case M_BUT:     MAGIC_STRING(/*,*/" but"); break;
 
             case M_DOCSTR:
                 SEND_STRING_DELAY(/*"*/"\"\"\"\"\""
@@ -261,23 +291,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case UPDIR:
                 SEND_STRING_DELAY("../", TAP_CODE_DELAY);
                 break;
-            case KC_SPC:
-                // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
-                // When the Repeat key follows Space, it behaves as one-shot shift.
-                // TODO: This isn't working very well. Think it probably conflicts
-                // with my alternate one-shot mods, and also it's still sending a space,
-                // need to set ret = false, I think.
-                if (get_repeat_key_count() > 0) {
-                    if (record->event.pressed) {
-                        add_oneshot_mods(MOD_LSFT);
-                        register_mods(MOD_LSFT);
-                    } else {
-                        unregister_mods(MOD_LSFT);
-                    }
-                } else {
-                    magic = false;
-                }
-                break;
+            // case KC_SPC:
+            //     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
+            //     // When the Repeat key follows Space, it behaves as one-shot shift.
+            //     // TODO: This isn't working very well. Think it probably conflicts
+            //     // with my alternate one-shot mods, and also it's still sending a space,
+            //     // need to set ret = false, I think.
+            //     if (get_repeat_key_count() > 0) {
+            //         if (record->event.pressed) {
+            //             add_oneshot_mods(MOD_LSFT);
+            //             register_mods(MOD_LSFT);
+            //         } else {
+            //             unregister_mods(MOD_LSFT);
+            //         }
+            //     } else {
+            //         magic = false;
+            //     }
+            //     break;
             default:
                 magic = false;
                 break;
@@ -649,7 +679,7 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         // N -> Shift + N, Shift + N -> N.
         case KC_N:
             if ((mods & MOD_MASK_SHIFT) == 0) {
-            return S(KC_N);
+                return S(KC_N);
             }
             return KC_N;
 
@@ -660,9 +690,9 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_U: return KC_E;         // U -> E
         case KC_I:
             if ((mods & MOD_MASK_SHIFT) == 0) {
-            return M_ION;  // I -> ON
+                return M_ION;  // I -> ON
             } else {
-            return KC_QUOT;  // Shift I -> '
+                return KC_QUOT;  // Shift I -> '
             }
         case KC_M: return M_MENT;       // M -> ENT
         case KC_Q: return M_QUEN;       // Q -> UEN
@@ -680,7 +710,7 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_R: return KC_L;         // R -> L
         case KC_DOT:
             if ((mods & MOD_MASK_SHIFT) == 0) {
-            return M_UPDIR;  // . -> ./
+                return M_UPDIR;  // . -> ./
             }
             return M_NOOP;
         case KC_HASH: return M_INCLUDE;  // # -> include
@@ -689,22 +719,27 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_RBRC: return KC_SCLN;    // ] -> ;
         //   case KC_AT: return USRNAME;      // @ -> <username>
 
-        case KC_COMM:
-            if ((mods & MOD_MASK_SHIFT) != 0) {
-            return KC_EQL;  // ! -> =
-            }
-            return M_NOOP;
+        // Additions from https://github.com/Ikcelaks/keyboard_layouts/blob/main/magic_sturdy/magic_sturdy.md
+        case KC_B:    return M_BEFORE;
+        case KC_K:    return KC_S;
+        case KC_J:    return M_JUST;
+        case KC_N:    return M_NION;
+        case KC_V:    return M_VER;
+        case KC_W:    return M_WHICH;
+        case KC_X:    return M_XES;
+        case KC_COMM: return M_BUT;
+
         case KC_QUOT:
             if ((mods & MOD_MASK_SHIFT) != 0) {
-            return M_DOCSTR;  // " -> ""<cursor>"""
+                return M_DOCSTR;  // " -> ""<cursor>"""
             }
             return M_NOOP;
         case KC_GRV:  // ` -> ``<cursor>``` (for Markdown code)
             return M_MKGRVS;
-        case KC_LABK:  // < -> - (for Haskell)
-            return KC_MINS;
-        case KC_SLSH:
-            return KC_SLSH;  // / -> / (easier reach than Repeat)
+        // case KC_LABK:  // < -> - (for Haskell)
+        //     return KC_MINS;
+        // case KC_SLSH:
+        //     return KC_SLSH;  // / -> / (easier reach than Repeat)
 
         case KC_PLUS:
         case KC_MINS:
@@ -715,16 +750,19 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_TILD:
         case KC_EXLM:
         case KC_DLR:
+        case KC_LABK:
         case KC_RABK:
         case KC_LPRN:
         case KC_RPRN:
         case KC_UNDS:
         case KC_COLN:
+        case KC_SLSH:
             return KC_EQL;
 
         case KC_F:
-        case KC_V:
-        case KC_X:
+        case KC_Z:
+        case KC_H:
+        case KC_Q:
         case KC_SCLN:
         case KC_1 ... KC_0:
             return M_NOOP;
