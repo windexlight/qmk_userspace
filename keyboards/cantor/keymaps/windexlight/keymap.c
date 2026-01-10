@@ -65,6 +65,13 @@ enum custom_keycodes {
     M_TMENT,
     M_UPDIR,
     M_NBSP,
+    M_BEFORE,
+    M_JUST,
+    M_NION,
+    M_VER,
+    M_WHICH,
+    M_XES,
+    M_BUT,
     M_NOOP,
 };
 
@@ -135,9 +142,11 @@ extern host_driver_t chibios_driver;
 // held while sending the string. Additionally, the last key is set such that if
 // the Repeat Key is pressed next, it produces `repeat_keycode`. This helper is
 // used for several macros below in my process_record_user() function.
-#define MAGIC_STRING(str, repeat_keycode) \
-    magic_send_string_P(PSTR(str), (repeat_keycode))
-static void magic_send_string_P(const char* str, uint16_t repeat_keycode) {
+// windexlight modifications - clear non-shift mods. If shft_str is provided,
+// clear shift as well and send shft_str if shift was active, else send str.
+#define MAGIC_STRING(str, shft_str, repeat_keycode) \
+    magic_send_string_P(PSTR(str), PSTR(shft_str), (repeat_keycode))
+static void magic_send_string_P(const char* str, const char* shft_str, uint16_t repeat_keycode) {
     uint8_t saved_mods = 0;
     // If Caps Word is on, save the mods and hold Shift.
     if (is_caps_word_on()) {
@@ -145,13 +154,47 @@ static void magic_send_string_P(const char* str, uint16_t repeat_keycode) {
         register_mods(MOD_BIT_LSHIFT);
     }
 
-    send_string_P(str);  // Send the string.
+    uint8_t mods = get_mods();
+    uint8_t weak_mods = get_weak_mods();
+    uint8_t oneshot_mods = get_oneshot_mods();
+    if (shft_str != NULL) {
+        clear_mods();
+        clear_weak_mods();
+        clear_oneshot_mods();
+        if (((mods | weak_mods | oneshot_mods) & MOD_MASK_SHIFT) != 0) {
+            send_string_P(shft_str); // Send the shifted string.
+        } else {
+            send_string_P(str); // Send un-shifted string.
+        }
+    } else {
+        set_mods(mods & MOD_MASK_SHIFT);
+        set_weak_mods(weak_mods & MOD_MASK_SHIFT);
+        set_oneshot_mods(oneshot_mods & MOD_MASK_SHIFT);
+        send_string_P(str); // Send the string.
+    }
+    set_mods(mods);
+    set_weak_mods(weak_mods);
+    set_oneshot_mods(oneshot_mods);
     set_last_keycode(repeat_keycode);
 
     // If Caps Word is on, restore the mods.
     if (is_caps_word_on()) {
         set_mods(saved_mods);
     }
+}
+
+// Needed to avoid side effects when tapping sroll lock with certain mods (such as ctrl) held
+static void tap_scrl_no_mods(void) {
+    uint8_t mods = get_mods();
+    uint8_t weak_mods = get_weak_mods();
+    uint8_t oneshot_mods = get_oneshot_mods();
+    clear_mods();
+    clear_weak_mods();
+    clear_oneshot_mods();
+    tap_code(KC_SCRL);
+    set_mods(mods);
+    set_weak_mods(weak_mods);
+    set_oneshot_mods(oneshot_mods);
 }
 
 
@@ -165,7 +208,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         if (record->event.pressed) {
             if (layer == _EXT) {
                 if (!host_keyboard_led_state().scroll_lock) {
-                    tap_code(KC_SCRL);
+                    tap_scrl_no_mods();
                 }
             }
             if (stack_size < sizeof(layer_stack)) {
@@ -175,7 +218,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         } else {
             if (layer == _EXT) {
                 if (host_keyboard_led_state().scroll_lock) {
-                    tap_code(KC_SCRL);
+                    tap_scrl_no_mods();
                 }
             }
             for (uint8_t i = 0; i < stack_size; i++) {
@@ -227,7 +270,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //
         //   D <altrep> <rep> -> DYN (as in "dynamic")
         //   O <altrep> <rep> -> OAN (as in "loan")
-        if (get_repeat_key_count() < 0 &&
+        int8_t rep_count = get_repeat_key_count();
+        if (rep_count < 0 &&
             ((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0 &&
             (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
             keycode == KC_O || keycode == KC_U || keycode == KC_Y)) {
@@ -241,15 +285,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             switch (keycode) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
-            case M_THE:     MAGIC_STRING(/* */"the", KC_N); break;
-            case M_ION:     MAGIC_STRING(/*i*/"on", KC_S); break;
-            case M_MENT:    MAGIC_STRING(/*m*/"ent", KC_S); break;
-            case M_QUEN:    MAGIC_STRING(/*q*/"uen", KC_C); break;
-            case M_TMENT:   MAGIC_STRING(/*t*/"ment", KC_S); break;
-            case M_UPDIR:   MAGIC_STRING(/*.*/"./", UPDIR); break;
+            case M_THE:     MAGIC_STRING(/* */"the", "The", KC_N); break;
+            case M_ION:     MAGIC_STRING(/*i*/"on", NULL, KC_S); break;
+            case M_MENT:    MAGIC_STRING(/*m*/"ent", NULL, KC_S); break;
+            case M_QUEN:    MAGIC_STRING(/*q*/"uen", NULL, KC_C); break;
+            case M_TMENT:   MAGIC_STRING(/*t*/"ment", NULL, KC_S); break;
+            case M_UPDIR:   MAGIC_STRING(/*.*/"./", NULL, UPDIR); break;
             case M_INCLUDE: SEND_STRING_DELAY(/*#*/"include ", TAP_CODE_DELAY); break;
             case M_EQEQ:    SEND_STRING_DELAY(/*=*/"==", TAP_CODE_DELAY); break;
             case M_NBSP:    SEND_STRING_DELAY(/*&*/"nbsp;", TAP_CODE_DELAY); break;
+            case M_BEFORE:  MAGIC_STRING(/*b*/"efore", NULL, M_NOOP); break;
+            case M_JUST:    MAGIC_STRING(/*j*/"ust", NULL, M_NOOP); break;
+            case M_NION:    MAGIC_STRING(/*n*/"ion", NULL, KC_S); break;
+            case M_VER:     MAGIC_STRING(/*v*/"er", NULL, KC_S); break;
+            case M_WHICH:   MAGIC_STRING(/*w*/"hich", NULL, M_NOOP); break;
+            case M_XES:     MAGIC_STRING(/*x*/"es", NULL, M_NOOP); break;
+            case M_BUT:     MAGIC_STRING(/*,*/" but", NULL, M_NOOP); break;
 
             case M_DOCSTR:
                 SEND_STRING_DELAY(/*"*/"\"\"\"\"\""
@@ -261,26 +312,41 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case UPDIR:
                 SEND_STRING_DELAY("../", TAP_CODE_DELAY);
                 break;
-            case KC_SPC:
-                // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
-                // When the Repeat key follows Space, it behaves as one-shot shift.
-                // TODO: This isn't working very well. Think it probably conflicts
-                // with my alternate one-shot mods, and also it's still sending a space,
-                // need to set ret = false, I think.
-                if (get_repeat_key_count() > 0) {
-                    if (record->event.pressed) {
-                        add_oneshot_mods(MOD_LSFT);
-                        register_mods(MOD_LSFT);
-                    } else {
-                        unregister_mods(MOD_LSFT);
-                    }
-                } else {
-                    magic = false;
-                }
-                break;
+            // case KC_SPC:
+            //     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
+            //     // When the Repeat key follows Space, it behaves as one-shot shift.
+            //     // TODO: This isn't working very well. Think it probably conflicts
+            //     // with my alternate one-shot mods, and also it's still sending a space,
+            //     // need to set ret = false, I think.
+            //     if (get_repeat_key_count() > 0) {
+            //         if (record->event.pressed) {
+            //             add_oneshot_mods(MOD_LSFT);
+            //             register_mods(MOD_LSFT);
+            //         } else {
+            //             unregister_mods(MOD_LSFT);
+            //         }
+            //     } else {
+            //         magic = false;
+            //     }
+            //     break;
             default:
                 magic = false;
                 break;
+            }
+            // Repeat key overrides
+            if (rep_count > 0) {
+                ret = false;
+                switch (keycode) {
+                case KC_A: MAGIC_STRING(/*a*/"nd", NULL, M_NOOP); break;
+                case KC_I: MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
+                case KC_Y: MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
+                case KC_N: tap_code(KC_F); break;
+                case KC_B: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
+                case KC_W: MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
+                case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
+                case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
+                default: ret = true; break;
+                }
             }
         }
         if (!magic) {
@@ -535,7 +601,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
         KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
         KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
-                                      KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
+                          KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FNC] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY,   KC_MNXT, KC_BRIU,      KC_F12, KC_F7, KC_F8, KC_F9, KC_SCRL, KC_TRNS,
@@ -547,7 +613,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_EXLM, KC_AT, KC_HASH, KC_DLR,  KC_PERC,      KC_EQL,  KC_GRV,  KC_COLN, KC_SCLN, KC_PLUS, KC_TRNS,
         KC_TRNS, _LALT,   _LGUI, _LSFT,   _LCTL,   KC_CIRC,      KC_ASTR, KC_LPRN, KC_LCBR, KC_LBRC, KC_MINS, KC_TRNS,
         KC_TRNS, CW_TOGG, KC_NO, KC_BSLS, KC_PIPE, KC_AMPR,      KC_TILD, KC_RPRN, KC_RCBR, KC_RBRC, KC_UNDS, KC_TRNS,
-                                 KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
+                                 KC_TRNS, KC_TRNS, KC_SPC,       KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO, KC_NO,  KC_NO,  KC_DOT,  KC_NUM,      KC_EQL,  KC_7, KC_8, KC_9, KC_0, KC_TRNS,
@@ -647,11 +713,11 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
 
         // For navigating next/previous search results in Vim:
         // N -> Shift + N, Shift + N -> N.
-        case KC_N:
-            if ((mods & MOD_MASK_SHIFT) == 0) {
-            return S(KC_N);
-            }
-            return KC_N;
+        // case KC_N:
+        //     if ((mods & MOD_MASK_SHIFT) == 0) {
+        //         return S(KC_N);
+        //     }
+        //     return KC_N;
 
         // Fix SFBs and awkward strokes.
         case KC_A: return KC_O;         // A -> O
@@ -660,9 +726,9 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_U: return KC_E;         // U -> E
         case KC_I:
             if ((mods & MOD_MASK_SHIFT) == 0) {
-            return M_ION;  // I -> ON
+                return M_ION;  // I -> ON
             } else {
-            return KC_QUOT;  // Shift I -> '
+                return KC_QUOT;  // Shift I -> '
             }
         case KC_M: return M_MENT;       // M -> ENT
         case KC_Q: return M_QUEN;       // Q -> UEN
@@ -680,7 +746,7 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_R: return KC_L;         // R -> L
         case KC_DOT:
             if ((mods & MOD_MASK_SHIFT) == 0) {
-            return M_UPDIR;  // . -> ./
+                return M_UPDIR;  // . -> ./
             }
             return M_NOOP;
         case KC_HASH: return M_INCLUDE;  // # -> include
@@ -689,22 +755,27 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_RBRC: return KC_SCLN;    // ] -> ;
         //   case KC_AT: return USRNAME;      // @ -> <username>
 
-        case KC_COMM:
-            if ((mods & MOD_MASK_SHIFT) != 0) {
-            return KC_EQL;  // ! -> =
-            }
-            return M_NOOP;
+        // Additions from https://github.com/Ikcelaks/keyboard_layouts/blob/main/magic_sturdy/magic_sturdy.md
+        case KC_B:    return M_BEFORE;
+        case KC_K:    return KC_S;
+        case KC_J:    return M_JUST;
+        case KC_N:    return M_NION;
+        case KC_V:    return M_VER;
+        case KC_W:    return M_WHICH;
+        case KC_X:    return M_XES;
+        case KC_COMM: return M_BUT;
+
         case KC_QUOT:
             if ((mods & MOD_MASK_SHIFT) != 0) {
-            return M_DOCSTR;  // " -> ""<cursor>"""
+                return M_DOCSTR;  // " -> ""<cursor>"""
             }
             return M_NOOP;
         case KC_GRV:  // ` -> ``<cursor>``` (for Markdown code)
             return M_MKGRVS;
-        case KC_LABK:  // < -> - (for Haskell)
-            return KC_MINS;
-        case KC_SLSH:
-            return KC_SLSH;  // / -> / (easier reach than Repeat)
+        // case KC_LABK:  // < -> - (for Haskell)
+        //     return KC_MINS;
+        // case KC_SLSH:
+        //     return KC_SLSH;  // / -> / (easier reach than Repeat)
 
         case KC_PLUS:
         case KC_MINS:
@@ -715,16 +786,18 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_TILD:
         case KC_EXLM:
         case KC_DLR:
+        case KC_LABK:
         case KC_RABK:
         case KC_LPRN:
         case KC_RPRN:
         case KC_UNDS:
         case KC_COLN:
+        case KC_SLSH:
             return KC_EQL;
 
         case KC_F:
-        case KC_V:
-        case KC_X:
+        case KC_Z:
+        case KC_H:
         case KC_SCLN:
         case KC_1 ... KC_0:
             return M_NOOP;
