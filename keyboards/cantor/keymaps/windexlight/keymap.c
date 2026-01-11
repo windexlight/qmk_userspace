@@ -149,9 +149,9 @@ extern host_driver_t chibios_driver;
 // held while sending the string. Additionally, the last key is set such that if
 // the Repeat Key is pressed next, it produces `repeat_keycode`. This helper is
 // used for several macros below in my process_record_user() function.
-#define MAGIC_STRING(str, repeat_keycode) \
-    magic_send_string_P(PSTR(str), (repeat_keycode))
-static void magic_send_string_P(const char* str, uint16_t repeat_keycode) {
+#define MAGIC_STRING(str, shft_str, repeat_keycode) \
+    magic_send_string_P(PSTR(str), PSTR(shft_str), (repeat_keycode))
+static void magic_send_string_P(const char* str, const char* shft_str, uint16_t repeat_keycode) {
     uint8_t saved_mods = 0;
     // If Caps Word is on, save the mods and hold Shift.
     if (is_caps_word_on()) {
@@ -159,13 +159,31 @@ static void magic_send_string_P(const char* str, uint16_t repeat_keycode) {
         register_mods(MOD_BIT_LSHIFT);
     }
 
-    send_string_P(str);  // Send the string.
+    if (shft_str != NULL && ((get_mods() | get_weak_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT) != 0) {
+        send_string_P(shft_str);  // Send the shifted string.
+    } else {
+        send_string_P(str);  // Send the string.
+    }
     set_last_keycode(repeat_keycode);
 
     // If Caps Word is on, restore the mods.
     if (is_caps_word_on()) {
         set_mods(saved_mods);
     }
+}
+
+// Needed to avoid side effects when tapping sroll lock with certain mods (such as ctrl) held
+static void tap_scrl_no_mods(void) {
+    uint8_t mods = get_mods();
+    uint8_t weak_mods = get_weak_mods();
+    uint8_t oneshot_mods = get_oneshot_mods();
+    clear_mods();
+    clear_weak_mods();
+    clear_oneshot_mods();
+    tap_code(KC_SCRL);
+    set_mods(mods);
+    set_weak_mods(weak_mods);
+    set_oneshot_mods(oneshot_mods);
 }
 
 
@@ -178,9 +196,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         uint8_t layer = keycode - EX_LAYER;
         if (record->event.pressed) {
             if (layer == _EXT) {
-                // Why does doing oneshot ctrl often result in stuck scroll lock?
                 if (!host_keyboard_led_state().scroll_lock) {
-                    tap_code(KC_SCRL);
+                    tap_scrl_no_mods();
                 }
             }
             if (stack_size < sizeof(layer_stack)) {
@@ -190,7 +207,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         } else {
             if (layer == _EXT) {
                 if (host_keyboard_led_state().scroll_lock) {
-                    tap_code(KC_SCRL);
+                    tap_scrl_no_mods();
                 }
             }
             for (uint8_t i = 0; i < stack_size; i++) {
@@ -250,6 +267,16 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             set_last_mods(0);
         }
         // TODO -- set repeat key overrides here
+        switch (keycode) {
+        case KC_A: set_last_keycode(M_AND); break;
+        case KC_I: set_last_keycode(M_ING); break;
+        case KC_Y: set_last_keycode(M_YOU); break;
+        case KC_N: set_last_keycode(KC_F); break;
+        case KC_B: set_last_keycode(M_BECAUSE); break;
+        case KC_W: set_last_keycode(M_WOULD); break;
+        case KC_COMM: set_last_keycode(M_SP_AND); break;
+        case KC_SPC: set_last_keycode(M_FOR); break;
+        }
         bool magic = true;
         if (!record->event.pressed) {
             magic = false;
@@ -257,29 +284,29 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             switch (keycode) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
-            case M_THE:     MAGIC_STRING(/* */"the", KC_N); break;
-            case M_ION:     MAGIC_STRING(/*i*/"on", KC_S); break;
-            case M_MENT:    MAGIC_STRING(/*m*/"ent", KC_S); break;
-            case M_QUEN:    MAGIC_STRING(/*q*/"uen", KC_C); break;
-            case M_TMENT:   MAGIC_STRING(/*t*/"ment", KC_S); break;
-            case M_UPDIR:   MAGIC_STRING(/*.*/"./", UPDIR); break;
+            case M_THE:     MAGIC_STRING(/* */"the", "The", KC_N); break;
+            case M_ION:     MAGIC_STRING(/*i*/"on", NULL, KC_S); break;
+            case M_MENT:    MAGIC_STRING(/*m*/"ent", NULL, KC_S); break;
+            case M_QUEN:    MAGIC_STRING(/*q*/"uen", NULL, KC_C); break;
+            case M_TMENT:   MAGIC_STRING(/*t*/"ment", NULL, KC_S); break;
+            case M_UPDIR:   MAGIC_STRING(/*.*/"./", NULL, UPDIR); break;
             case M_INCLUDE: SEND_STRING_DELAY(/*#*/"include ", TAP_CODE_DELAY); break;
             case M_EQEQ:    SEND_STRING_DELAY(/*=*/"==", TAP_CODE_DELAY); break;
             case M_NBSP:    SEND_STRING_DELAY(/*&*/"nbsp;", TAP_CODE_DELAY); break;
-            case M_BEFORE:  MAGIC_STRING(/*b*/"efore"); break;
-            case M_BECAUSE: MAGIC_STRING(/*b*/"ecause"); break;
-            case M_WOULD:   MAGIC_STRING(/*w*/"ould"); break;
-            case M_AND:     MAGIC_STRING(/*a*/"nd"); break;
-            case M_SP_AND:  MAGIC_STRING(/*,*/" and"); break;
-            case M_FOR:     MAGIC_STRING(/*f*/"or"); break;
-            case M_YOU:     MAGIC_STRING(/*y*/"ou"); break;
-            case M_ING:     MAGIC_STRING(/*i*/"ng"); break;
-            case M_JUST:    MAGIC_STRING(/*j*/"ust"); break;
-            case M_NION:    MAGIC_STRING(/*n*/"ion"); break;
-            case M_VER:     MAGIC_STRING(/*v*/"er"); break;
-            case M_WHICH:   MAGIC_STRING(/*w*/"hich"); break;
-            case M_XES:     MAGIC_STRING(/*x*/"es"); break;
-            case M_BUT:     MAGIC_STRING(/*,*/" but"); break;
+            case M_BEFORE:  MAGIC_STRING(/*b*/"efore", NULL, M_NOOP); break;
+            case M_BECAUSE: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
+            case M_WOULD:   MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
+            case M_AND:     MAGIC_STRING(/*a*/"nd", NULL, M_NOOP); break;
+            case M_SP_AND:  MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
+            case M_FOR:     MAGIC_STRING(/* */"for", "For", M_NOOP); break;
+            case M_YOU:     MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
+            case M_ING:     MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
+            case M_JUST:    MAGIC_STRING(/*j*/"ust", NULL, M_NOOP); break;
+            case M_NION:    MAGIC_STRING(/*n*/"ion", NULL, KC_S); break;
+            case M_VER:     MAGIC_STRING(/*v*/"er", NULL, KC_S); break;
+            case M_WHICH:   MAGIC_STRING(/*w*/"hich", NULL, M_NOOP); break;
+            case M_XES:     MAGIC_STRING(/*x*/"es", NULL, M_NOOP); break;
+            case M_BUT:     MAGIC_STRING(/*,*/" but", " But", M_NOOP); break;
 
             case M_DOCSTR:
                 SEND_STRING_DELAY(/*"*/"\"\"\"\"\""
@@ -677,11 +704,11 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
 
         // For navigating next/previous search results in Vim:
         // N -> Shift + N, Shift + N -> N.
-        case KC_N:
-            if ((mods & MOD_MASK_SHIFT) == 0) {
-                return S(KC_N);
-            }
-            return KC_N;
+        // case KC_N:
+        //     if ((mods & MOD_MASK_SHIFT) == 0) {
+        //         return S(KC_N);
+        //     }
+        //     return KC_N;
 
         // Fix SFBs and awkward strokes.
         case KC_A: return KC_O;         // A -> O
@@ -762,7 +789,6 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_F:
         case KC_Z:
         case KC_H:
-        case KC_Q:
         case KC_SCLN:
         case KC_1 ... KC_0:
             return M_NOOP;
