@@ -66,13 +66,6 @@ enum custom_keycodes {
     M_UPDIR,
     M_NBSP,
     M_BEFORE,
-    M_BECAUSE,
-    M_WOULD,
-    M_AND,
-    M_SP_AND,
-    M_FOR,
-    M_YOU,
-    M_ING,
     M_JUST,
     M_NION,
     M_VER,
@@ -259,23 +252,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //
         //   D <altrep> <rep> -> DYN (as in "dynamic")
         //   O <altrep> <rep> -> OAN (as in "loan")
-        if (get_repeat_key_count() < 0 &&
+        int8_t rep_count = get_repeat_key_count();
+        if (rep_count < 0 &&
             ((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0 &&
             (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
             keycode == KC_O || keycode == KC_U || keycode == KC_Y)) {
             set_last_keycode(KC_N);
             set_last_mods(0);
-        }
-        // TODO -- set repeat key overrides here
-        switch (keycode) {
-        case KC_A: set_last_keycode(M_AND); break;
-        case KC_I: set_last_keycode(M_ING); break;
-        case KC_Y: set_last_keycode(M_YOU); break;
-        case KC_N: set_last_keycode(KC_F); break;
-        case KC_B: set_last_keycode(M_BECAUSE); break;
-        case KC_W: set_last_keycode(M_WOULD); break;
-        case KC_COMM: set_last_keycode(M_SP_AND); break;
-        case KC_SPC: set_last_keycode(M_FOR); break;
         }
         bool magic = true;
         if (!record->event.pressed) {
@@ -294,13 +277,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case M_EQEQ:    SEND_STRING_DELAY(/*=*/"==", TAP_CODE_DELAY); break;
             case M_NBSP:    SEND_STRING_DELAY(/*&*/"nbsp;", TAP_CODE_DELAY); break;
             case M_BEFORE:  MAGIC_STRING(/*b*/"efore", NULL, M_NOOP); break;
-            case M_BECAUSE: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
-            case M_WOULD:   MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
-            case M_AND:     MAGIC_STRING(/*a*/"nd", NULL, M_NOOP); break;
-            case M_SP_AND:  MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
-            case M_FOR:     MAGIC_STRING(/* */"for", "For", M_NOOP); break;
-            case M_YOU:     MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
-            case M_ING:     MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
             case M_JUST:    MAGIC_STRING(/*j*/"ust", NULL, M_NOOP); break;
             case M_NION:    MAGIC_STRING(/*n*/"ion", NULL, KC_S); break;
             case M_VER:     MAGIC_STRING(/*v*/"er", NULL, KC_S); break;
@@ -338,6 +314,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             default:
                 magic = false;
                 break;
+            }
+            // Repeat key overrides
+            if (rep_count > 0) {
+                ret = false;
+                switch (keycode) {
+                case KC_A: MAGIC_STRING(/*a*/"nd", NULL, M_NOOP); break;
+                case KC_I: MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
+                case KC_Y: MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
+                case KC_N: tap_code(KC_F); break;
+                case KC_B: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
+                case KC_W: MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
+                case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
+                case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break; // TODO -- shift doesn't work
+                default: ret = true; break;
+                }
             }
         }
         if (!magic) {
