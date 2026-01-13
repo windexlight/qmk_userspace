@@ -54,6 +54,7 @@ enum custom_keycodes {
     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
     // Macros invoked through the Magic key.
     UPDIR,
+    M_N,
     M_DOCSTR,
     M_EQEQ,
     M_INCLUDE,
@@ -275,7 +276,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             ((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0 &&
             (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
             keycode == KC_O || keycode == KC_U || keycode == KC_Y)) {
-            set_last_keycode(KC_N);
+            set_last_keycode(M_N);
             set_last_mods(0);
         }
         bool magic = true;
@@ -341,6 +342,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 case KC_I: MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
                 case KC_Y: MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
                 case KC_N: tap_code(KC_F); break;
+                case M_N:  tap_code(KC_N); break;
                 case KC_B: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
                 case KC_W: MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
                 case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
