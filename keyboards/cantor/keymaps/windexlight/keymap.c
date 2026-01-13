@@ -286,7 +286,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             switch (keycode) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
-            case M_THE:     MAGIC_STRING(/* */"the", "The", KC_N); break;
+            case M_THE:     MAGIC_STRING(/* */"the", "The", M_N); break;
             case M_ION:     MAGIC_STRING(/*i*/"on", NULL, KC_S); break;
             case M_MENT:    MAGIC_STRING(/*m*/"ent", NULL, KC_S); break;
             case M_QUEN:    MAGIC_STRING(/*q*/"uen", NULL, KC_C); break;
