@@ -26,7 +26,8 @@ enum layers {
   _SYM,
   _FNC,
   _EXT,
-  _MSE
+  _MSE,
+  _NUM_FNC
 };
 
 #define _BAK LALT(KC_LEFT)
@@ -577,32 +578,17 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
     }
 }
 
-// Ideas:
-// Magic Sturdy: https://github.com/getreuer/qmk-keymap/tree/main?tab=readme-ov-file
-// Except, merge current Seniply layers (for the most part)
-// One problem is where to put the repeat key (which seems like a decent idea).
-// After reading about Tap Flow and Speculative Hold, I have to wonder if the combination
-//  of those two might not make it feasible to try putting shift as mod-taps on the middle
-//  fingers on both sides (i.e., how shift is placed in the Magic Strudy description above).
-//  This could both free up the current thumb shift key for use as a repeat key, but also might
-//  be a comfortable solution to my recent dissatisfaction with the thumb shift placement. It's
-//  also attractive in that it keeps shift on the same fingers that they happen to be placed in
-//  Seniply (at least on the left).
-// Some or all of the placements of keys in the outer columns from Magic Sturdy above may be
-// nice to keep also, and I don't think wholly conflict with the Seniply layers.
-// See also (maybe not needed here but noting so as not to forget its existence): "Neutralize flashing modifiers"
-
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_TAB,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_SLSH,
-        KC_BSPC, KC_S,  KC_T,  HRM_R, KC_D,  KC_Y,      KC_F,  KC_N,  HRM_E,   KC_A,   KC_I,    KC_DEL,
-        KC_SCLN, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_QUOT, KC_ENT,
-                  EX_MO(_NUM), EX_MO(_EXT), QK_REP,      EX_MO(_SYM), KC_SPC, EX_MO(_FNC)
+        KC_TAB,  KC_V,  KC_M,  KC_L, KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_SLSH,
+        KC_BSPC, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    KC_DEL,
+        KC_SCLN, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_QUOT, KC_ENT,
+             EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),      QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
-        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
-        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_TRNS,
+        KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_VOLU,
+        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_MUTE,
+        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_VOLD,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FNC] = LAYOUT_split_3x6_3(
@@ -615,21 +601,33 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_EXLM, KC_AT, KC_HASH, KC_DLR,  KC_PERC,      KC_EQL,  KC_GRV,  KC_COLN, KC_SCLN, KC_PLUS, KC_TRNS,
         KC_TRNS, _LALT,   _LGUI, _LSFT,   _LCTL,   KC_CIRC,      KC_ASTR, KC_LPRN, KC_LCBR, KC_LBRC, KC_MINS, KC_TRNS,
         KC_TRNS, CW_TOGG, KC_NO, KC_BSLS, KC_PIPE, KC_AMPR,      KC_TILD, KC_RPRN, KC_RCBR, KC_RBRC, KC_UNDS, KC_TRNS,
-                                 KC_TRNS, KC_TRNS, KC_SPC,       KC_TRNS, KC_TRNS, KC_TRNS
+                                  KC_TRNS, KC_TRNS, KC_SPC,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO, KC_NO,  KC_NO,  KC_DOT,  KC_NUM,      KC_EQL,  KC_7, KC_8, KC_9, KC_0, KC_TRNS,
-        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL,   _RALT,       KC_ASTR, KC_4, KC_5, KC_6, KC_DOT, KC_TRNS,
+        KC_TRNS, KC_NO, KC_NO,  KC_NO,  KC_DOT,  KC_NUM,      KC_EQL,  KC_7, KC_8, KC_9, KC_0,    KC_TRNS,
+        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL,   _RALT,       KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  KC_TRNS,
         KC_TRNS, KC_NO, KC_APP, KC_TAB, KC_BSPC, KC_ENT,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, KC_TRNS,
                               KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
+    [_NUM_FNC] = LAYOUT_split_3x6_3(
+        KC_F1,   KC_F2, KC_F3, KC_F4,  KC_F5,  KC_F6,       KC_EQL,  KC_7, KC_8, KC_9, KC_0,    KC_TRNS,
+        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL, QK_LEAD,     KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  KC_TRNS,
+        KC_F7,   KC_F8, KC_F9, KC_F10, KC_F11, KC_F12,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, KC_TRNS,
+                            KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
+    ),
     [_MSE] = LAYOUT_split_3x6_3(
-        KC_TRNS,  KC_ESC, _BAK,  _FND,  _FWD,  KC_NO,   MS_WHLU, MS_WHLL, MS_UP, MS_WHLR, KC_TRNS, KC_TRNS,
+        KC_TRNS,  KC_ESC, _BAK,  _FND,  _FWD,  KC_NO,   MS_WHLU, MS_WHLL, MS_UP,   MS_WHLR, KC_TRNS, KC_TRNS,
         TG(_MSE), _LALT,  _LGUI, _LSFT, _LCTL, _RALT,   MS_WHLD, MS_LEFT, MS_DOWN, MS_RGHT, KC_TRNS, KC_TRNS,
         KC_NO,    _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                                             KC_NO, KC_NO, KC_NO,   MS_BTN2, MS_BTN1, MS_BTN3
+                                 KC_NO, KC_NO, KC_NO,   MS_BTN2, MS_BTN1, MS_BTN3
     )
 };
+
+void leader_end_user(void) {
+    if (leader_sequence_two_keys(KC_W, KC_I)) {
+        SEND_STRING("windexlight");
+    }
+}
 
 bool caps_word_press_user(uint16_t keycode) {
     switch (keycode) {
