@@ -208,7 +208,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (keycode >= EX_LAYER && keycode <= EX_LAYER_MAX) {
         uint8_t layer = keycode - EX_LAYER;
         if (record->event.pressed) {
-            if (layer == _EXT) {
+            if (layer == _NUM_FNC) {
                 if (!host_keyboard_led_state().scroll_lock) {
                     tap_scrl_no_mods();
                 }
@@ -218,7 +218,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             active_layer = layer;
         } else {
-            if (layer == _EXT) {
+            if (layer == _NUM_FNC) {
                 if (host_keyboard_led_state().scroll_lock) {
                     tap_scrl_no_mods();
                 }
