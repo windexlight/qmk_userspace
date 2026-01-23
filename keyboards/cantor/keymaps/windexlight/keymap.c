@@ -64,6 +64,7 @@ enum custom_keycodes {
     M_MKGRVS,
     M_QUEN,
     M_THE,
+    M_CAP_THE,
     M_TMENT,
     M_UPDIR,
     M_NBSP,
@@ -288,6 +289,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
             case M_THE:     MAGIC_STRING(/* */"the", "The", M_N); break;
+            case M_CAP_THE: MAGIC_STRING(/* */"The", "The", M_N); break;
             case M_ION:     MAGIC_STRING(/*i*/"on", NULL, KC_S); break;
             case M_MENT:    MAGIC_STRING(/*m*/"ent", NULL, KC_S); break;
             case M_QUEN:    MAGIC_STRING(/*q*/"uen", NULL, KC_C); break;
@@ -339,13 +341,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (rep_count > 0) {
                 ret = false;
                 switch (keycode) {
-                case KC_A: MAGIC_STRING(/*a*/"nd", NULL, M_NOOP); break;
-                case KC_I: MAGIC_STRING(/*i*/"ng", NULL, KC_S); break;
-                case KC_Y: MAGIC_STRING(/*y*/"ou", NULL, M_NOOP); break;
-                case KC_N: tap_code(KC_F); break;
-                case M_N:  tap_code(KC_N); break;
-                case KC_B: MAGIC_STRING(/*b*/"ecause", NULL, M_NOOP); break;
-                case KC_W: MAGIC_STRING(/*w*/"ould", NULL, M_NOOP); break;
+                case KC_A: MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
+                case KC_I: MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
+                case KC_Y: MAGIC_STRING(/*y*/"ou", /*y*/"ou", M_NOOP); break;
+                case KC_N: MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
+                case M_N:  MAGIC_STRING(/*n*/"n", /*n*/"n", M_NOOP); break;
+                case KC_B: MAGIC_STRING(/*b*/"ecause", /*b*/"ecause", M_NOOP); break;
+                case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
                 case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
                 case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
                 default: ret = true; break;
@@ -709,7 +711,11 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
         case KC_SPC:  // spc -> THE
         case KC_ENT:
         case KC_TAB:
-            return M_THE;
+            if ((mods & MOD_MASK_SHIFT) == 0) {
+                return M_THE;
+            } else {
+                return M_CAP_THE;
+            }
 
         // For navigating next/previous search results in Vim:
         // N -> Shift + N, Shift + N -> N.
