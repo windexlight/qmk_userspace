@@ -75,6 +75,8 @@ enum custom_keycodes {
     M_WHICH,
     M_XES,
     M_BUT,
+    M_LL,
+    M_VE,
     M_NOOP,
 };
 
@@ -175,10 +177,12 @@ static void magic_send_string_P(const char* str, const char* shft_str, uint16_t 
         set_oneshot_mods(oneshot_mods & MOD_MASK_SHIFT);
         send_string_P(str); // Send the string.
     }
+    set_last_keycode(repeat_keycode);
+    set_last_mods(get_mods());
     set_mods(mods);
     set_weak_mods(weak_mods);
     set_oneshot_mods(oneshot_mods);
-    set_last_keycode(repeat_keycode);
+    
 
     // If Caps Word is on, restore the mods.
     if (is_caps_word_on()) {
@@ -274,12 +278,17 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //   D <altrep> <rep> -> DYN (as in "dynamic")
         //   O <altrep> <rep> -> OAN (as in "loan")
         int8_t rep_count = get_repeat_key_count();
-        if (rep_count < 0 &&
-            ((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0 &&
-            (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
-            keycode == KC_O || keycode == KC_U || keycode == KC_Y)) {
-            set_last_keycode(M_N);
-            set_last_mods(0);
+        if (rep_count < 0) {
+            if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0) {
+                if (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
+                    keycode == KC_O || keycode == KC_U || keycode == KC_Y) {
+                    set_last_keycode(M_N);
+                    set_last_mods(get_mods());
+                } else if (keycode == KC_QUOT) {
+                    set_last_keycode(M_LL);
+                    set_last_mods(get_mods());
+                }
+            }
         }
         bool magic = true;
         if (!record->event.pressed) {
@@ -305,6 +314,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case M_WHICH:   MAGIC_STRING(/*w*/"hich", NULL, M_NOOP); break;
             case M_XES:     MAGIC_STRING(/*x*/"es", NULL, M_NOOP); break;
             case M_BUT:     MAGIC_STRING(/*,*/" but", NULL, M_NOOP); break;
+            case M_LL:      MAGIC_STRING(/*I'*/"ll", NULL, M_NOOP); break;
+            case M_VE:      MAGIC_STRING(/*I'*/"ve", NULL, M_NOOP); break;
 
             case M_DOCSTR:
                 SEND_STRING_DELAY(/*"*/"\"\"\"\"\""
@@ -350,7 +361,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
                 case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
                 case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
+                case KC_QUOT: MAGIC_STRING(/*'*/"ll", NULL, M_NOOP); break;
                 default: ret = true; break;
+                }
+            }
+            if (keycode == KC_DEL) {
+                if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT) != 0) {
+                    tap_code(KC_MINS);
+                    ret = false;
                 }
             }
         }
@@ -775,7 +793,9 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
             if ((mods & MOD_MASK_SHIFT) != 0) {
                 return M_DOCSTR;  // " -> ""<cursor>"""
             }
-            return M_NOOP;
+            return M_VE;
+        case M_LL:
+            return M_VE;
         case KC_GRV:  // ` -> ``<cursor>``` (for Markdown code)
             return M_MKGRVS;
         // case KC_LABK:  // < -> - (for Haskell)
