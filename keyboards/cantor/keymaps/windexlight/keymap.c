@@ -182,7 +182,7 @@ static void magic_send_string_P(const char* str, const char* shft_str, uint16_t 
     set_mods(mods);
     set_weak_mods(weak_mods);
     set_oneshot_mods(oneshot_mods);
-    
+
 
     // If Caps Word is on, restore the mods.
     if (is_caps_word_on()) {
@@ -600,15 +600,15 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_TAB,  KC_V,  KC_M,  KC_L, KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_SLSH,
-        KC_BSPC, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    KC_DEL,
-        KC_SCLN, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_QUOT, KC_ENT,
+        KC_ESC,  KC_V,  KC_M,  KC_L, KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_QUOT,
+        KC_LSFT, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    LCTL(KC_U),
+        KC_LCTL, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, LCTL(KC_D),
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),      QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD,  KC_INS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_VOLU,
-        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_MUTE,
-        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, KC_VOLD,
+        KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD, KC_UNDS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_NO,
+        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  LCTL(KC_O),
+        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, LCTL(KC_I),
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FNC] = LAYOUT_split_3x6_3(
@@ -618,9 +618,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                        KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_SYM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_EXLM, KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_BSLS,
+        KC_TRNS, KC_EXLM, KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_NO,
         KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_COLN, KC_MINS, KC_PIPE,
-        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, CW_TOGG,    KC_TILD, KC_LBRC, KC_RBRC, KC_SCLN, KC_UNDS, KC_AMPR,
+        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, CW_TOGG,    KC_TILD, KC_LBRC, KC_RBRC, KC_SCLN, KC_BSLS, KC_AMPR,
                                   KC_TRNS, KC_TRNS, KC_SPC,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM] = LAYOUT_split_3x6_3(
