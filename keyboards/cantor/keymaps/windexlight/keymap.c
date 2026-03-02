@@ -22,9 +22,7 @@ uint8_t USAGE2KEYCODE(uint16_t usage);
 
 enum layers {
   _MAGIC_STURDY,
-  _NUM,
   _SYM,
-  _FNC,
   _EXT,
   _MSE,
   _NUM_FNC
@@ -601,38 +599,26 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         KC_ESC,  KC_V,  KC_M,  KC_L, KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_QUOT,
-        KC_SCLN, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    LCTL(KC_U),
-        KC_LCTL, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, LCTL(KC_D),
-             EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),      QK_REP, KC_LSFT, EX_MO(_SYM)
+        KC_LALT, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    KC_MINS,
+        KC_LCTL, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
+             EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_ESC, _BAK,  _FND,  _FWD, KC_UNDS,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_NO,
-        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  LCTL(KC_O),
-        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_PSCR, LCTL(KC_I),
+        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
+        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
+        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_NO,   KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
-    [_FNC] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY,   KC_MNXT, KC_BRIU,      KC_F12, KC_F7, KC_F8, KC_F9, KC_SCRL, KC_TRNS,
-        KC_TRNS, _LALT,   _LGUI,   _LSFT,     _LCTL,   KC_BRID,      KC_F11, KC_F4, KC_F5, KC_F6, KC_NO,   KC_TRNS,
-        KC_TRNS, KC_MUTE, KC_VOLD, RCS(KC_C), KC_VOLU, RCS(KC_V),    KC_F10, KC_F1, KC_F2, KC_F3, KC_NO,   KC_TRNS,
-                                       KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
-    ),
     [_SYM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_EXLM, KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_NO,
-        KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_COLN, KC_MINS, KC_PIPE,
-        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, CW_TOGG,    KC_TILD, KC_LBRC, KC_RBRC, KC_SCLN, KC_BSLS, KC_AMPR,
+        KC_TRNS, KC_NO,   KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_TRNS,
+        KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_PIPE, KC_EXLM, KC_TRNS,
+        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_NO,      KC_TILD, KC_LBRC, KC_RBRC, KC_AMPR, KC_BSLS, KC_TRNS,
                                   KC_TRNS, KC_TRNS, KC_SPC,      KC_TRNS, KC_TRNS, KC_TRNS
-    ),
-    [_NUM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO, KC_NO,  KC_NO,  KC_DOT,  KC_NUM,      KC_EQL,  KC_7, KC_8, KC_9, KC_0,    KC_TRNS,
-        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL,   _RALT,       KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  KC_TRNS,
-        KC_TRNS, KC_NO, KC_APP, KC_TAB, KC_BSPC, KC_ENT,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, KC_TRNS,
-                              KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM_FNC] = LAYOUT_split_3x6_3(
         KC_F1,   KC_F2, KC_F3, KC_F4,  KC_F5,  KC_F6,       KC_EQL,  KC_7, KC_8, KC_9, KC_0,    KC_TRNS,
-        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL, QK_LEAD,     KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  LCTL(KC_Y),
-        KC_F7,   KC_F8, KC_F9, KC_F10, KC_F11, KC_F12,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, LCTL(KC_E),
+        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL, QK_LEAD,     KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  KC_TRNS,
+        KC_F7,   KC_F8, KC_F9, KC_F10, KC_F11, KC_F12,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, KC_TRNS,
                             KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_MSE] = LAYOUT_split_3x6_3(
