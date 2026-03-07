@@ -610,9 +610,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_SYM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,   KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_TRNS,
-        KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_PIPE, KC_EXLM, KC_TRNS,
-        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_NO,      KC_TILD, KC_LBRC, KC_RBRC, KC_AMPR, KC_BSLS, KC_TRNS,
+        KC_TRNS, KC_NO,   KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_DQUO,
+        KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_PIPE, KC_EXLM, KC_UNDS,
+        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_NO,      KC_TILD, KC_LBRC, KC_RBRC, KC_AMPR, KC_BSLS, KC_COLN,
                                   KC_TRNS, KC_TRNS, KC_SPC,      KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NUM_FNC] = LAYOUT_split_3x6_3(
