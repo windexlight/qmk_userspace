@@ -83,20 +83,21 @@ enum keycode_aliases {
     // The "magic" key is the Alternate Repeat Key.
     MAGIC = QK_AREP,
     // Short aliases for home row mods and other tap-hold keys.
-    // HRM_S = LALT_T(KC_S),
-    // HRM_T = LT(SYM, KC_T),
+    HRM_D = LCTL_T(KC_D),
     HRM_R = LSFT_T(KC_R),
-    // HRM_D = LT(NAV, KC_D),
-    // HRM_G = LCTL_T(KC_G),
-    // HRM_X = LGUI_T(KC_X),
+    HRM_T = LGUI_T(KC_T),
+    HRM_S = LALT_T(KC_S),
+    // HRM_G = LT(_SYM, KC_T),
+    // HRM_J = LT(_NUM_FNC, KC_J),
+    // HRM_K = LT(_EXT, KC_K),
 
-    // HRM_N = LT(NUM, KC_N),
-    HRM_E = RSFT_T(KC_E),
-    // HRM_A = LT(SYM, KC_A),
-    // HRM_I = LALT_T(KC_I),
-    // HRM_H = RCTL_T(KC_H),
-    // HRM_DOT = LT(WIN, KC_DOT),
-    // HRM_QUO = RGUI_T(KC_QUOT),
+    HRM_N   = LCTL_T(KC_N),
+    HRM_E   = LSFT_T(KC_E),
+    HRM_A   = LGUI_T(KC_A),
+    HRM_I   = LALT_T(KC_I),
+    // HRM_H   = LT(_SYM, KC_H),
+    // HRM_COM = LT(_NUM_FNC, KC_COMM),
+    // HRM_DOT = LT(_EXT, KC_DOT),
 
     // EXT_COL = LT(EXT, KC_SCLN),
     // NAV_SLS = LSFT_T(KC_SLSH),
@@ -598,9 +599,9 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_ESC,  KC_V,  KC_M,  KC_L, KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_QUOT,
-        KC_LCTL, KC_S,  KC_T,  KC_R, KC_D,  KC_Y,      KC_F,  KC_N,  KC_E,    KC_A,   KC_I,    KC_MINS,
-        KC_LALT, KC_X,  KC_K,  KC_J, KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
+        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_QUOT,
+        KC_LCTL, HRM_S, HRM_T, HRM_R, HRM_D, KC_Y,      KC_F,  HRM_N, HRM_E,   HRM_A,  HRM_I,   KC_MINS,
+        KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
