@@ -825,3 +825,19 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
     //   }
     return KC_TRNS;
 }
+
+bool get_speculative_hold(uint16_t keycode, keyrecord_t* record) {
+    switch (keycode) { // These keys may be speculatively held.
+        case HRM_D:
+        case HRM_R:
+        case HRM_T:
+        case HRM_S:
+        case HRM_N:
+        case HRM_E:
+        case HRM_A:
+        case HRM_I:
+            return true;
+    }
+    return false; // Disable otherwise.
+}
+
