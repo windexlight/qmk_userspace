@@ -10,14 +10,7 @@
 #define MASTER_RIGHT
 // #define SPLIT_USB_DETECT
 
-#define DUMMY_MOD_NEUTRALIZER_KEYCODE KC_RIGHT_CTRL
+#define DUMMY_MOD_NEUTRALIZER_KEYCODE KC_RSFT
 
 // TODO -- Add to this if there are other combos that cause bad side effects
-#define MODS_TO_NEUTRALIZE { \
-    MOD_BIT(KC_LALT), \
-    MOD_BIT(KC_LALT)|MOD_BIT(KC_LSFT), \
-    MOD_BIT(KC_LALT)|MOD_BIT(KC_LCTL), \
-    MOD_BIT(KC_LALT)|MOD_BIT(KC_LSFT)|MOD_BIT(KC_LCTL), \
-    MOD_BIT(KC_LGUI), \
-}
-
+#define MODS_TO_NEUTRALIZE { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
