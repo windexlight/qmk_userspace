@@ -605,7 +605,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, KC_TRNS,
+        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, QK_BOOT,
         KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
         KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_NO,   KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
