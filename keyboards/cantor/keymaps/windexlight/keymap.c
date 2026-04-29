@@ -598,37 +598,59 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 }
 
 enum {
-    TD_CPSTE,
+    TD_OMNI,
+    TD_BOOT,
 };
 
-void tap_dance_custom_finished(tap_dance_state_t *state, void *user_data) {
+void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
     if (state->pressed) {
-        SEND_STRING(SS_LCTL("c")); // Hold action
+        if (state->count == 1) {
+            SEND_STRING(SS_LCTL("c"));
+        } else if (state->count == 2) {
+            SEND_STRING(SS_LCTL("y"));
+        }
     } else {
-        SEND_STRING(SS_LCTL("v")); // Tap action
+        if (state->count == 1) {
+            SEND_STRING(SS_LCTL("v"));
+        } else if (state->count == 2) {
+            SEND_STRING(SS_LCTL("z"));
+        } else if (state->count == 3) {
+            SEND_STRING(SS_DOWN(X_LCTL) SS_LSFT("z") SS_UP(X_LCTL));
+        }
     }
 }
 
-void tap_dance_custom_reset(tap_dance_state_t *state, void *user_data) {
-    // unregister_code(KC_F1); // Release hold action
+void tap_dance_boot_finished(tap_dance_state_t *state, void *user_data) {
+    if (state->count == 3) {
+        bootloader_jump();
+    }
 }
 
 tap_dance_action_t tap_dance_actions[] = {
-    [TD_CPSTE] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, tap_dance_custom_finished, tap_dance_custom_reset)
+    [TD_OMNI] = ACTION_TAP_DANCE_FN(tap_dance_omni_finished),
+    [TD_BOOT] = ACTION_TAP_DANCE_FN(tap_dance_boot_finished),
 };
 
-// In keymap.c layout, use TD(TD_CUSTOM)
 
+uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case TD(TD_OMNI):
+        case TD(TD_BOOT):
+            return 250;
+        default:
+            return TAPPING_TERM;
+    }
+}
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    TD(TD_CPSTE),
+        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    TD(TD_OMNI),
         KC_LCTL, HRM_S, HRM_T, HRM_R, HRM_D, KC_Y,      KC_F,  HRM_N, HRM_E,   HRM_A,  HRM_I,   KC_MINS,
         KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, QK_BOOT,
+        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, TD(TD_BOOT),
         KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
         KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_NO,   KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
