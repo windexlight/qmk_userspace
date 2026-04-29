@@ -597,9 +597,32 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
     }
 }
 
+enum {
+    TD_CPSTE,
+};
+
+void tap_dance_custom_finished(tap_dance_state_t *state, void *user_data) {
+    if (state->pressed) {
+        SEND_STRING(SS_LCTL("c")); // Hold action
+    } else {
+        SEND_STRING(SS_LCTL("v")); // Tap action
+    }
+}
+
+void tap_dance_custom_reset(tap_dance_state_t *state, void *user_data) {
+    // unregister_code(KC_F1); // Release hold action
+}
+
+tap_dance_action_t tap_dance_actions[] = {
+    [TD_CPSTE] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, tap_dance_custom_finished, tap_dance_custom_reset)
+};
+
+// In keymap.c layout, use TD(TD_CUSTOM)
+
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    KC_QUOT,
+        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    TD(TD_CPSTE),
         KC_LCTL, HRM_S, HRM_T, HRM_R, HRM_D, KC_Y,      KC_F,  HRM_N, HRM_E,   HRM_A,  HRM_I,   KC_MINS,
         KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
@@ -629,6 +652,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                  KC_NO, KC_NO, KC_NO,   MS_BTN2, MS_BTN1, MS_BTN3
     )
 };
+
 
 void leader_end_user(void) {
     if (leader_sequence_two_keys(KC_W, KC_I)) {
