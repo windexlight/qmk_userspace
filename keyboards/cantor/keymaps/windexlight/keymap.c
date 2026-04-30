@@ -608,6 +608,8 @@ void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
             SEND_STRING(SS_LCTL("c"));
         } else if (state->count == 2) {
             SEND_STRING(SS_LCTL("y"));
+        } else if (state->count == 3) {
+            tap_code(KC_PSCR);
         }
     } else {
         if (state->count == 1) {
@@ -642,11 +644,23 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
+const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COMM, KC_QUES);
+const key_override_t dot_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_DOT, KC_EXLM);
+const key_override_t unds_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_UNDS, KC_MINS);
+const key_override_t coln_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COLN, KC_SCLN);
+
+const key_override_t *key_overrides[] = {
+	&comma_key_override,
+	&dot_key_override,
+	&unds_key_override,
+	&coln_key_override,
+};
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    TD(TD_OMNI),
         KC_LCTL, HRM_S, HRM_T, HRM_R, HRM_D, KC_Y,      KC_F,  HRM_N, HRM_E,   HRM_A,  HRM_I,   KC_MINS,
-        KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_SCLN,
+        KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_COLN,
              EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
     ),
     [_EXT] = LAYOUT_split_3x6_3(
