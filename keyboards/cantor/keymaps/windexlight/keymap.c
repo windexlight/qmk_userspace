@@ -12,7 +12,6 @@
 #include <assert.h>
 #include QMK_KEYBOARD_H
 
-void clear_osm_mods(void);
 void send_raw_hid_report(void);
 void send_keyboard_user(report_keyboard_t* report);
 void send_nkro_user(report_nkro_t* report);
@@ -21,12 +20,14 @@ uint8_t USAGE2KEYCODE(uint16_t usage);
 
 
 enum layers {
-  _MAGIC_STURDY,
-  _SYM,
-  _EXT,
-  _MSE,
-  _NUM_FNC
+    _MAGIC_STURDY,
+    _NAV,
+    _SYM,
+    _NUM,
+    _FUN,
 };
+
+#define MAGIC QK_AREP
 
 #define _BAK LALT(KC_LEFT)
 #define _FND LCTL(KC_F)
@@ -38,18 +39,18 @@ enum layers {
 #define _WIN KC_LGUI
 #define _PSTE LCTL(KC_V)
 
-#define EX_NUM_MODS 8
-#define EX_NUM_OSM_KEYS 32
-#define EX_MOD_HOLD_OSM_CLEAR_MS 500
-#define EX_OSM_TIMEOUT_MS 5000
-#define HEARTBEAT_TIMEOUT_MS 1500
+#define _CTL(x) LCTL_T(x)
+#define _SFT(x) LSFT_T(x)
+#define _GUI(x) LGUI_T(x)
+#define _ALT(x) LALT_T(x)
+
+#define _NAV(x) LT(_NAV, x)
+#define _SYM(x) LT(_SYM, x)
+#define _NUM(x) LT(_NUM, x)
+#define _FUN(x) LT(_FUN, x)
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
-    EX_LAYER_MAX = EX_LAYER + 10,
-    EX_ONE_SHOT_MOD,
-    EX_ONE_SHOT_MOD_MAX = EX_ONE_SHOT_MOD + EX_NUM_MODS - 1,
-    CLR_OSM,
     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
     // Macros invoked through the Magic key.
     UPDIR,
@@ -78,52 +79,9 @@ enum custom_keycodes {
     M_NOOP,
 };
 
-enum keycode_aliases {
-    // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
-    // The "magic" key is the Alternate Repeat Key.
-    MAGIC = QK_AREP,
-    // Short aliases for home row mods and other tap-hold keys.
-    HRM_D = LCTL_T(KC_D),
-    HRM_R = LSFT_T(KC_R),
-    HRM_T = LGUI_T(KC_T),
-    HRM_S = LALT_T(KC_S),
-    // HRM_G = LT(_SYM, KC_T),
-    // HRM_J = LT(_NUM_FNC, KC_J),
-    // HRM_K = LT(_EXT, KC_K),
 
-    HRM_N   = LCTL_T(KC_N),
-    HRM_E   = LSFT_T(KC_E),
-    HRM_A   = LGUI_T(KC_A),
-    HRM_I   = LALT_T(KC_I),
-    // HRM_H   = LT(_SYM, KC_H),
-    // HRM_COM = LT(_NUM_FNC, KC_COMM),
-    // HRM_DOT = LT(_EXT, KC_DOT),
-
-    // EXT_COL = LT(EXT, KC_SCLN),
-    // NAV_SLS = LSFT_T(KC_SLSH),
-    // NAV_EQL = LT(0, KC_EQL),
-};
-
-#define EX_MO(n) (EX_LAYER + (n))
-#define EX_OSM(n) (EX_ONE_SHOT_MOD + ((n) & 0x07)) // Usage: EX_OSM(KC_LSFT)
-#define EX_MOD(n) (KC_LEFT_CTRL + (n))
-
-#define _LALT EX_OSM(KC_LALT)
-#define _LGUI EX_OSM(KC_LGUI)
-#define _LSFT EX_OSM(KC_LSFT)
-#define _LCTL EX_OSM(KC_LCTL)
-#define _RALT EX_OSM(KC_RALT)
-
-static uint8_t layer_stack[6];
-static uint8_t stack_size = 0;
-static uint8_t ex_osm_bits = 0;
-static uint8_t ex_mod_bits = 0;
-static uint32_t last_mod_time[EX_NUM_MODS];
 static uint32_t last_heartbeat_time = 0;
-static uint16_t ex_osm_keys[EX_NUM_OSM_KEYS];
-static uint8_t ex_osm_key_count = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
-static uint8_t active_layer = 0;
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
 
@@ -182,7 +140,6 @@ static void magic_send_string_P(const char* str, const char* shft_str, uint16_t 
     set_weak_mods(weak_mods);
     set_oneshot_mods(oneshot_mods);
 
-
     // If Caps Word is on, restore the mods.
     if (is_caps_word_on()) {
         set_mods(saved_mods);
@@ -209,91 +166,41 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
 #endif
     bool ret = true;
-    if (keycode >= EX_LAYER && keycode <= EX_LAYER_MAX) {
-        uint8_t layer = keycode - EX_LAYER;
+    if (keycode == _NAV(KC_T)) {
         if (record->event.pressed) {
-            if (layer == _NUM_FNC) {
-                if (!host_keyboard_led_state().scroll_lock) {
-                    tap_scrl_no_mods();
-                }
+            if (!host_keyboard_led_state().scroll_lock) {
+                tap_scrl_no_mods();
             }
-            if (stack_size < sizeof(layer_stack)) {
-                layer_stack[stack_size++] = layer;
-            }
-            active_layer = layer;
         } else {
-            if (layer == _NUM_FNC) {
-                if (host_keyboard_led_state().scroll_lock) {
-                    tap_scrl_no_mods();
-                }
-            }
-            for (uint8_t i = 0; i < stack_size; i++) {
-                if (layer_stack[i] == layer) {
-                    for (uint8_t j = i; j < stack_size - 1; j++) {
-                        layer_stack[j] = layer_stack[j+1];
-                    }
-                    stack_size--;
-                    break;
-                }
-            }
-            if (stack_size > 0) {
-                active_layer = layer_stack[stack_size-1];
-            } else {
-                active_layer = 0;
+            if (host_keyboard_led_state().scroll_lock) {
+                tap_scrl_no_mods();
             }
         }
-        layer_move(active_layer);
-        ret = false;
-    } else if (keycode >= EX_ONE_SHOT_MOD && keycode <= EX_ONE_SHOT_MOD_MAX) {
-        uint8_t mod = keycode - EX_ONE_SHOT_MOD;
-        uint8_t code = EX_MOD(mod);
-        uint8_t bit = MOD_BIT(code);
-        if (record->event.pressed) {
-            register_code(code);
-            ex_mod_bits |= bit;
-            ex_osm_bits |= bit;
-            last_mod_time[mod] = timer_read32();
-        } else {
-            if ((ex_osm_bits & bit) == 0) {
-                unregister_code(code);
-            }
-            ex_mod_bits &= ~bit;
-        }
-        ret = false;
-    } else if (keycode == CLR_OSM) {
-        if (record->event.pressed) {
-            ex_osm_key_count = 0;
-            clear_osm_mods();
-        }
-        ret = false;
-    } else {
-        // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
-        // If alt repeating key A, E, I, O, U, Y with no mods other than Shift, set
-        // the last key to KC_N. Above, alternate repeat of KC_N is defined to be
-        // again KC_N. This way, either tapping alt repeat and then repeat (or
-        // equivalently double tapping alt repeat) is useful to type certain patterns
-        // without SFBs:
-        //
-        //   D <altrep> <rep> -> DYN (as in "dynamic")
-        //   O <altrep> <rep> -> OAN (as in "loan")
-        int8_t rep_count = get_repeat_key_count();
-        if (rep_count < 0) {
-            if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0) {
-                if (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
-                    keycode == KC_O || keycode == KC_U || keycode == KC_Y) {
-                    set_last_keycode(M_N);
-                    set_last_mods(get_mods());
-                } else if (keycode == KC_QUOT) {
-                    set_last_keycode(M_LL);
-                    set_last_mods(get_mods());
-                }
+    }
+    // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
+    // If alt repeating key A, E, I, O, U, Y with no mods other than Shift, set
+    // the last key to KC_N. Above, alternate repeat of KC_N is defined to be
+    // again KC_N. This way, either tapping alt repeat and then repeat (or
+    // equivalently double tapping alt repeat) is useful to type certain patterns
+    // without SFBs:
+    //
+    //   D <altrep> <rep> -> DYN (as in "dynamic")
+    //   O <altrep> <rep> -> OAN (as in "loan")
+    int8_t rep_count = get_repeat_key_count();
+    if (rep_count < 0) {
+        if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & ~MOD_MASK_SHIFT) == 0) {
+            if (keycode == KC_A || keycode == KC_E || keycode == KC_I ||
+                keycode == KC_O || keycode == KC_U || keycode == KC_Y) {
+                set_last_keycode(M_N);
+                set_last_mods(get_mods());
+            } else if (keycode == KC_QUOT) {
+                set_last_keycode(M_LL);
+                set_last_mods(get_mods());
             }
         }
-        bool magic = true;
-        if (!record->event.pressed) {
-            magic = false;
-        } else {
-            switch (keycode) {
+    }
+    if (record->event.pressed) {
+        switch (keycode) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
             case M_THE:     MAGIC_STRING(/* */"the", "The", M_N); break;
@@ -318,7 +225,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
             case M_DOCSTR:
                 SEND_STRING_DELAY(/*"*/"\"\"\"\"\""
-                    SS_TAP(X_LEFT) SS_TAP(X_LEFT) SS_TAP(X_LEFT), TAP_CODE_DELAY);
+                                  SS_TAP(X_LEFT) SS_TAP(X_LEFT) SS_TAP(X_LEFT), TAP_CODE_DELAY);
                 break;
             case M_MKGRVS:
                 SEND_STRING_DELAY(/*`*/"``\n\n```" SS_TAP(X_UP), TAP_CODE_DELAY);
@@ -343,18 +250,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             //         magic = false;
             //     }
             //     break;
-            default:
-                magic = false;
-                break;
-            }
-            // Repeat key overrides
-            if (rep_count > 0) {
-                ret = false;
-                switch (keycode) {
-                case HRM_A: MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
-                case HRM_I: MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
+        }
+        // Repeat key overrides
+        if (rep_count > 0) {
+            ret = false;
+            switch (keycode) {
+                case _NUM(KC_A): MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
+                case _ALT(KC_I): MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
                 case KC_Y: MAGIC_STRING(/*y*/"ou", /*y*/"ou", M_NOOP); break;
-                case HRM_N: MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
+                case _CTL(KC_N): MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
                 case M_N:  MAGIC_STRING(/*n*/"n", /*n*/"n", M_NOOP); break;
                 case KC_B: MAGIC_STRING(/*b*/"ecause", /*b*/"ecause", M_NOOP); break;
                 case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
@@ -362,35 +266,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
                 case KC_QUOT: MAGIC_STRING(/*'*/"ll", NULL, M_NOOP); break;
                 default: ret = true; break;
-                }
-            }
-            if (keycode == KC_DEL) {
-                if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT) != 0) {
-                    tap_code(KC_MINS);
-                    ret = false;
-                }
             }
         }
-        if (!magic) {
-            if (ex_osm_bits > 0) {
-                if (record->event.pressed) {
-                    if (ex_osm_key_count < sizeof(ex_osm_keys)) {
-                        ex_osm_keys[ex_osm_key_count++] = keycode;
-                    }
-                } else if (ex_osm_key_count > 0) {
-                    for (uint8_t i = 0; i < ex_osm_key_count; i++) {
-                        if (ex_osm_keys[i] == keycode) {
-                            for (uint8_t j = i; j < ex_osm_key_count - 1; j++) {
-                                ex_osm_keys[j] = ex_osm_keys[j+1];
-                            }
-                            ex_osm_key_count--;
-                            break;
-                        }
-                    }
-                    if (ex_osm_key_count == 0) {
-                        clear_osm_mods();
-                    }
-                }
+        if (keycode == KC_DEL) {
+            if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT) != 0) {
+                tap_code(KC_MINS);
+                ret = false;
             }
         }
     }
@@ -473,7 +354,7 @@ void send_raw_hid_report() {
     static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
     static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
     raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
-    raw_hid_report[1] = active_layer;
+    raw_hid_report[1] = 0; //active_layer;
     raw_hid_report[2] = MATRIX_ROWS;
     raw_hid_report[3] = MATRIX_COLS;
     memcpy(raw_hid_report+4, matrix, sizeof(matrix));
@@ -489,42 +370,6 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         raw_hid_report[1] = 0xEF;
         raw_hid_send(raw_hid_report, RAW_EPSIZE);
     } else if (data[0] == 0xBF) {
-        send_raw_hid_reports = false;
-        suppress_real_reports = false;
-    }
-}
-
-void clear_osm_mods() {
-    uint8_t bit;
-    for (uint8_t mod = 0; mod < EX_NUM_MODS; mod++) {
-        bit = MOD_BIT(mod);
-        if ((ex_osm_bits & bit) > 0) {
-            if ((ex_mod_bits & bit) == 0) {
-                unregister_code(EX_MOD(mod));
-            }
-        }
-    }
-    ex_osm_bits = 0;
-}
-
-void housekeeping_task_user() {
-    uint8_t bit;
-    if (ex_osm_bits > 0 && ex_osm_key_count == 0) {
-        for (uint8_t mod = 0; mod < EX_NUM_MODS; mod++) {
-            bit = MOD_BIT(mod);
-            if ((ex_osm_bits & bit) > 0) {
-                bool holding = (ex_mod_bits & bit) > 0;
-                uint32_t timeout = holding ? EX_MOD_HOLD_OSM_CLEAR_MS : EX_OSM_TIMEOUT_MS;
-                if (timer_elapsed32(last_mod_time[mod]) > timeout) {
-                    ex_osm_bits &= ~bit;
-                    if (!holding) {
-                        unregister_code(EX_MOD(mod));
-                    }
-                }
-            }
-        }
-    }
-    if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
     }
@@ -600,6 +445,7 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 enum {
     TD_OMNI,
     TD_BOOT,
+    TD_CAPS,
 };
 
 void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
@@ -628,9 +474,18 @@ void tap_dance_boot_finished(tap_dance_state_t *state, void *user_data) {
     }
 }
 
+void tap_dance_caps_finished(tap_dance_state_t *state, void *user_data) {
+    if (state->count == 1) {
+        caps_word_toggle();
+    } else if (state->count == 2) {
+        tap_code(KC_CAPS);
+    }
+}
+
 tap_dance_action_t tap_dance_actions[] = {
     [TD_OMNI] = ACTION_TAP_DANCE_FN(tap_dance_omni_finished),
     [TD_BOOT] = ACTION_TAP_DANCE_FN(tap_dance_boot_finished),
+    [TD_CAPS] = ACTION_TAP_DANCE_FN(tap_dance_caps_finished),
 };
 
 
@@ -638,6 +493,7 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case TD(TD_OMNI):
         case TD(TD_BOOT):
+        case TD(TD_CAPS):
             return 250;
         default:
             return TAPPING_TERM;
@@ -658,35 +514,35 @@ const key_override_t *key_overrides[] = {
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_ESC,  KC_V,  KC_M,  KC_L,  KC_C,  KC_P,      KC_B,  MAGIC, KC_U,    KC_O,   KC_Q,    TD(TD_OMNI),
-        KC_LCTL, HRM_S, HRM_T, HRM_R, HRM_D, KC_Y,      KC_F,  HRM_N, HRM_E,   HRM_A,  HRM_I,   KC_MINS,
-        KC_LALT, KC_X,  KC_K,  KC_J,  KC_G,  KC_W,      KC_Z,  KC_H,  KC_COMM, KC_DOT, KC_SLSH, KC_COLN,
-             EX_MO(_NUM_FNC), KC_SPC, EX_MO(_EXT),     QK_REP, KC_LSFT, EX_MO(_SYM)
+        TD(TD_OMNI),  KC_V,       KC_M,       KC_L,       KC_C,  KC_P,   KC_B,     MAGIC,       KC_U,  _FUN(KC_O),        KC_Q,  TD(TD_CAPS),
+        KC_TAB,  _ALT(KC_S), _NAV(KC_T), _SFT(KC_R), _CTL(KC_D), KC_Y,   KC_F, _CTL(KC_N), _SFT(KC_E), _NUM(KC_A),   _ALT(KC_I),    KC_BSPC,
+        KC_ENT,       KC_X,  _SYM(KC_K),      KC_J,  _GUI(KC_G), KC_W,   KC_Z, _GUI(KC_H),    KC_COMM, _SYM(KC_DOT),    KC_QUOT,    KC_COLN,
+                                               KC_DEL, KC_SPC, KC_ESC,   QK_REP, KC_UNDS, QK_LEAD
     ),
-    [_EXT] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,  _BAK,  _FND,  _FWD, KC_PSCR,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_CAPS, TD(TD_BOOT),
-        KC_TRNS, _LALT,  _LGUI, _LSFT, _LCTL, _RALT,    KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_DEL,  KC_TRNS,
-        KC_TRNS, _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,    KC_ENT,  KC_BSPC, KC_TAB,  KC_APP,  KC_NO,   KC_TRNS,
-                          KC_TRNS, KC_TRNS, KC_TRNS,    KC_TRNS, KC_TRNS, KC_TRNS
+    [_NAV] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO,   KC_NO,  KC_NO,   KC_NO,   KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
+        KC_TRNS, KC_LALT, KC_NO,  KC_LSFT, KC_LCTL, KC_NO,   KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_NO, KC_TRNS,
+        KC_TRNS, KC_NO,   KC_NO,  KC_NO,   KC_LGUI, KC_NO,   KC_NO,   _BAK,    KC_NO,   _FWD,    KC_NO, KC_TRNS,
+                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_SYM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,   KC_AT,  KC_HASH, KC_DLR,   KC_PERC,    KC_EQL,  KC_LCBR, KC_RCBR, KC_GRV,  KC_PLUS, KC_DQUO,
-        KC_TRNS, _LALT,   _LGUI,  _LSFT,   _LCTL,    KC_CIRC,    KC_ASTR, KC_LPRN, KC_RPRN, KC_PIPE, KC_EXLM, KC_UNDS,
-        KC_TRNS, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_NO,      KC_TILD, KC_LBRC, KC_RBRC, KC_AMPR, KC_BSLS, KC_COLN,
-                                  KC_TRNS, KC_TRNS, KC_SPC,      KC_TRNS, KC_TRNS, KC_TRNS
+        KC_TRNS,      KC_GRV,   KC_LABK,      KC_RABK,       KC_MINS,  KC_PIPE,   KC_CIRC,      KC_LCBR,       KC_RCBR,  KC_DLR,       KC_BSLS,  KC_TRNS,
+        KC_TRNS, _ALT(KC_EXLM), KC_ASTR, _SFT(KC_SLSH), _CTL(KC_EQL),  KC_AMPR,   KC_HASH, _CTL(KC_LPRN), _SFT(KC_RPRN), KC_SCLN, _ALT(KC_DQUO), KC_TRNS,
+        KC_TRNS,      KC_TILD,  KC_PLUS,      KC_LBRC,  _GUI(KC_RBRC), KC_PERC,   KC_AT,   _GUI(KC_COLN),      KC_TRNS,  KC_TRNS,      KC_QUOT,  KC_TRNS,
+                                                     KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
-    [_NUM_FNC] = LAYOUT_split_3x6_3(
-        KC_F1,   KC_F2, KC_F3, KC_F4,  KC_F5,  KC_F6,       KC_EQL,  KC_7, KC_8, KC_9, KC_PLUS, KC_TRNS,
-        KC_TRNS, _LALT, _LGUI,  _LSFT,  _LCTL, QK_LEAD,     KC_ASTR, KC_4, KC_5, KC_6, KC_DOT,  KC_TRNS,
-        KC_F7,   KC_F8, KC_F9, KC_F10, KC_F11, KC_F12,      KC_TILD, KC_1, KC_2, KC_3, KC_SLSH, KC_TRNS,
-                            KC_TRNS, KC_TRNS, KC_TRNS,      KC_TRNS, KC_0, KC_TRNS
+    [_NUM] = LAYOUT_split_3x6_3(
+        TD(TD_BOOT), KC_PLUS, KC_9, KC_8, KC_7, KC_ASTR,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+        KC_TRNS,     KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+        KC_TRNS,     KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+                                 KC_TRNS, KC_0, KC_TRNS,   KC_NO, KC_NO, KC_NO
     ),
-    [_MSE] = LAYOUT_split_3x6_3(
-        KC_TRNS,  KC_ESC, _BAK,  _FND,  _FWD,  KC_NO,   MS_WHLU, MS_WHLL, MS_UP,   MS_WHLR, KC_TRNS, KC_TRNS,
-        TG(_MSE), _LALT,  _LGUI, _LSFT, _LCTL, _RALT,   MS_WHLD, MS_LEFT, MS_DOWN, MS_RGHT, KC_TRNS, KC_TRNS,
-        KC_NO,    _UNDO,  _CUT,  _COPY, _WIN,  _PSTE,   KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS,
-                                 KC_NO, KC_NO, KC_NO,   MS_BTN2, MS_BTN1, MS_BTN3
-    )
+    [_NUM] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO, KC_F9, KC_F8, KC_F7, KC_F10,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+        KC_TRNS, KC_NO, KC_F3, KC_F2, KC_F1, KC_F11,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+        KC_TRNS, KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
+                          KC_TRNS, KC_TRNS, KC_TRNS,   KC_NO, KC_NO, KC_NO
+    ),
 };
 
 
@@ -888,14 +744,14 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
 
 bool get_speculative_hold(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) { // These keys may be speculatively held.
-        case HRM_D:
-        case HRM_R:
-        case HRM_T:
-        case HRM_S:
-        case HRM_N:
-        case HRM_E:
-        case HRM_A:
-        case HRM_I:
+        case _CTL(KC_D):
+        case _SFT(KC_R):
+        case _GUI(KC_G):
+        case _ALT(KC_S):
+        case _CTL(KC_N):
+        case _SFT(KC_E):
+        case _GUI(KC_H):
+        case _ALT(KC_I):
             return true;
     }
     return false; // Disable otherwise.
