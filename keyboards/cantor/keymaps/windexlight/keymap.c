@@ -529,8 +529,7 @@ const key_override_t *key_overrides[] = {
 	&coln_key_override,
 };
 
-// Figure out something else to do for drag scroll
-// Use get_flow_tap_term to ease nvim count issues
+// Consider using get_flow_tap_term to ease nvim delay issues as necessary
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         KC_TAB,           KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
@@ -552,7 +551,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_SYM_R_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_CIRC, KC_LCBR, KC_RCBR, KC_DLR,  KC_BSLS, KC_TRNS,
-        KC_TRNS, KC_LALT, KC_LCTL, KC_LSFT, KC_NO, KC_NO,   KC_HASH, KC_LPRN, KC_RPRN, KC_SCLN, KC_DQUO, KC_TRNS, // keep adjusting mods. figure out timing issues with tap flow.
+        KC_TRNS, KC_LALT, KC_LCTL, KC_LSFT, KC_NO, KC_NO,   KC_HASH, KC_LPRN, KC_RPRN, KC_SCLN, KC_DQUO, KC_TRNS,
         KC_TRNS, KC_LGUI, KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_AT,   KC_COLN, KC_TRNS, KC_TRNS, KC_QUOT, KC_TRNS,
                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
