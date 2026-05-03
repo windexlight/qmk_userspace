@@ -257,10 +257,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         if (rep_count > 0) {
             ret = false;
             switch (keycode) {
-                case _NUM(KC_A): MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
+                case _CTL(KC_A): MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
                 case _ALT(KC_I): MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
                 case KC_Y: MAGIC_STRING(/*y*/"ou", /*y*/"ou", M_NOOP); break;
-                case _CTL(KC_N): MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
+                case _NUM(KC_N): MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
                 case M_N:  MAGIC_STRING(/*n*/"n", /*n*/"n", M_NOOP); break;
                 case KC_B: MAGIC_STRING(/*b*/"ecause", /*b*/"ecause", M_NOOP); break;
                 case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
