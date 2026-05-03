@@ -21,10 +21,11 @@ uint8_t USAGE2KEYCODE(uint16_t usage);
 
 enum layers {
     _MAGIC_STURDY,
-    _NAV,
-    _SYM,
-    _NUM,
-    _FUN,
+    _NAV_LAYER,
+    _SYM_L_LAYER,
+    _SYM_R_LAYER,
+    _NUM_LAYER,
+    _FUN_LAYER,
 };
 
 #define MAGIC QK_AREP
@@ -44,10 +45,11 @@ enum layers {
 #define _GUI(x) LGUI_T(x)
 #define _ALT(x) LALT_T(x)
 
-#define _NAV(x) LT(_NAV, x)
-#define _SYM(x) LT(_SYM, x)
-#define _NUM(x) LT(_NUM, x)
-#define _FUN(x) LT(_FUN, x)
+#define _NAV(x) LT(_NAV_LAYER, x)
+#define _SYM_L(x) LT(_SYM_L_LAYER, x)
+#define _SYM_R(x) LT(_SYM_R_LAYER, x)
+#define _NUM(x) LT(_NUM_LAYER, x)
+#define _FUN(x) LT(_FUN_LAYER, x)
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
@@ -166,17 +168,17 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
 #endif
     bool ret = true;
-    if (keycode == _NAV(KC_T)) {
-        if (record->event.pressed) {
-            if (!host_keyboard_led_state().scroll_lock) {
-                tap_scrl_no_mods();
-            }
-        } else {
-            if (host_keyboard_led_state().scroll_lock) {
-                tap_scrl_no_mods();
-            }
-        }
-    }
+    // if (keycode == _NAV(KC_T)) {
+    //     if (record->event.pressed) {
+    //         if (!host_keyboard_led_state().scroll_lock) {
+    //             tap_scrl_no_mods();
+    //         }
+    //     } else {
+    //         if (host_keyboard_led_state().scroll_lock) {
+    //             tap_scrl_no_mods();
+    //         }
+    //     }
+    // }
     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
     // If alt repeating key A, E, I, O, U, Y with no mods other than Shift, set
     // the last key to KC_N. Above, alternate repeat of KC_N is defined to be
@@ -450,21 +452,33 @@ enum {
 
 void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
     if (state->pressed) {
-        if (state->count == 1) {
-            SEND_STRING(SS_LCTL("c"));
-        } else if (state->count == 2) {
-            SEND_STRING(SS_LCTL("y"));
+        if (state->count == 2) {
+            SEND_STRING(SS_LCTL("z"));
         } else if (state->count == 3) {
-            tap_code(KC_PSCR);
+            SEND_STRING(SS_DOWN(X_LCTL) SS_LSFT("z") SS_UP(X_LCTL));
         }
     } else {
         if (state->count == 1) {
             SEND_STRING(SS_LCTL("v"));
         } else if (state->count == 2) {
-            SEND_STRING(SS_LCTL("z"));
+            SEND_STRING(SS_LCTL("c"));
         } else if (state->count == 3) {
-            SEND_STRING(SS_DOWN(X_LCTL) SS_LSFT("z") SS_UP(X_LCTL));
+            SEND_STRING(SS_LCTL("y"));
         }
+    }
+}
+
+void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
+    if (state->count == 1) {
+        if (!host_keyboard_led_state().scroll_lock) {
+            tap_scrl_no_mods();
+        }
+    }
+}
+
+void tap_dance_omni_reset(tap_dance_state_t *state, void *user_data) {
+    if (host_keyboard_led_state().scroll_lock) {
+        tap_scrl_no_mods();
     }
 }
 
@@ -479,11 +493,14 @@ void tap_dance_caps_finished(tap_dance_state_t *state, void *user_data) {
         caps_word_toggle();
     } else if (state->count == 2) {
         tap_code(KC_CAPS);
+    } else if (state->count == 3) {
+        tap_code(KC_PSCR);
     }
 }
 
+
 tap_dance_action_t tap_dance_actions[] = {
-    [TD_OMNI] = ACTION_TAP_DANCE_FN(tap_dance_omni_finished),
+    [TD_OMNI] = ACTION_TAP_DANCE_FN_ADVANCED(tap_dance_omni_each, tap_dance_omni_finished, tap_dance_omni_reset),
     [TD_BOOT] = ACTION_TAP_DANCE_FN(tap_dance_boot_finished),
     [TD_CAPS] = ACTION_TAP_DANCE_FN(tap_dance_caps_finished),
 };
@@ -512,39 +529,46 @@ const key_override_t *key_overrides[] = {
 	&coln_key_override,
 };
 
+// Figure out something else to do for drag scroll
+// Use get_flow_tap_term to ease nvim count issues
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        TD(TD_OMNI),  KC_V,       KC_M,       KC_L,       KC_C,  KC_P,   KC_B,     MAGIC,       KC_U,  _FUN(KC_O),        KC_Q,  TD(TD_CAPS),
-        KC_TAB,  _ALT(KC_S), _NAV(KC_T), _SFT(KC_R), _CTL(KC_D), KC_Y,   KC_F, _CTL(KC_N), _SFT(KC_E), _NUM(KC_A),   _ALT(KC_I),    KC_BSPC,
-        KC_ENT,       KC_X,  _SYM(KC_K),      KC_J,  _GUI(KC_G), KC_W,   KC_Z, _GUI(KC_H),    KC_COMM, _SYM(KC_DOT),    KC_QUOT,    KC_COLN,
-                                               KC_DEL, KC_SPC, KC_ESC,   QK_REP, KC_UNDS, QK_LEAD
+        KC_TAB,           KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
+        TD(TD_OMNI), _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
+        KC_ENT,      _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
+                                                    KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
     ),
-    [_NAV] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO,   KC_NO,  KC_NO,   KC_NO,   KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
-        KC_TRNS, KC_LALT, KC_NO,  KC_LSFT, KC_LCTL, KC_NO,   KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_NO, KC_TRNS,
-        KC_TRNS, KC_NO,   KC_NO,  KC_NO,   KC_LGUI, KC_NO,   KC_NO,   _BAK,    KC_NO,   _FWD,    KC_NO, KC_TRNS,
-                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    [_NAV_LAYER] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
+        KC_TRNS, KC_LALT, KC_LCTL, KC_LSFT, KC_NO, KC_NO,   KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_NO, KC_TRNS,
+        KC_TRNS, KC_LGUI, KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_NO,   _BAK,    KC_NO,   _FWD,    KC_NO, KC_TRNS,
+                               KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
-    [_SYM] = LAYOUT_split_3x6_3(
-        KC_TRNS,      KC_GRV,   KC_LABK,      KC_RABK,       KC_MINS,  KC_PIPE,   KC_CIRC,      KC_LCBR,       KC_RCBR,  KC_DLR,       KC_BSLS,  KC_TRNS,
-        KC_TRNS, _ALT(KC_EXLM), KC_ASTR, _SFT(KC_SLSH), _CTL(KC_EQL),  KC_AMPR,   KC_HASH, _CTL(KC_LPRN), _SFT(KC_RPRN), KC_SCLN, _ALT(KC_DQUO), KC_TRNS,
-        KC_TRNS,      KC_TILD,  KC_PLUS,      KC_LBRC,  _GUI(KC_RBRC), KC_PERC,   KC_AT,   _GUI(KC_COLN),      KC_TRNS,  KC_TRNS,      KC_QUOT,  KC_TRNS,
-                                                     KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    [_SYM_L_LAYER] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_GRV,  KC_LABK, KC_RABK, KC_MINS, KC_PIPE,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
+        KC_TRNS, KC_EXLM, KC_ASTR, KC_SLSH, KC_EQL,  KC_AMPR,   KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
+        KC_TRNS, KC_TILD, KC_PLUS, KC_LBRC, KC_RBRC, KC_PERC,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+                                   KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
-    [_NUM] = LAYOUT_split_3x6_3(
-        TD(TD_BOOT), KC_PLUS, KC_9, KC_8, KC_7, KC_ASTR,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-        KC_TRNS,     KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-        KC_TRNS,     KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-                                 KC_TRNS, KC_0, KC_TRNS,   KC_NO, KC_NO, KC_NO
+    [_SYM_R_LAYER] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_CIRC, KC_LCBR, KC_RCBR, KC_DLR,  KC_BSLS, KC_TRNS,
+        KC_TRNS, KC_LALT, KC_LCTL, KC_LSFT, KC_NO, KC_NO,   KC_HASH, KC_LPRN, KC_RPRN, KC_SCLN, KC_DQUO, KC_TRNS, // keep adjusting mods. figure out timing issues with tap flow.
+        KC_TRNS, KC_LGUI, KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_AT,   KC_COLN, KC_TRNS, KC_TRNS, KC_QUOT, KC_TRNS,
+                               KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
-    [_NUM] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO, KC_F9, KC_F8, KC_F7, KC_F10,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-        KC_TRNS, KC_NO, KC_F3, KC_F2, KC_F1, KC_F11,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-        KC_TRNS, KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_TRNS,
-                          KC_TRNS, KC_TRNS, KC_TRNS,   KC_NO, KC_NO, KC_NO
+    [_NUM_LAYER] = LAYOUT_split_3x6_3(
+        TD(TD_BOOT), KC_PLUS, KC_9, KC_8, KC_7, KC_ASTR,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
+        KC_TRNS,     KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
+        KC_TRNS,     KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+                                 KC_TRNS, KC_0, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    ),
+    [_FUN_LAYER] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO, KC_F9, KC_F8, KC_F7, KC_F10,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
+        KC_TRNS, KC_NO, KC_F3, KC_F2, KC_F1, KC_F11,   KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
+        KC_TRNS, KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+                          KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
 };
-
 
 void leader_end_user(void) {
     if (leader_sequence_two_keys(KC_W, KC_I)) {
@@ -744,14 +768,14 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
 
 bool get_speculative_hold(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) { // These keys may be speculatively held.
-        case _CTL(KC_D):
         case _SFT(KC_R):
-        case _GUI(KC_G):
+        case _CTL(KC_T):
         case _ALT(KC_S):
-        case _CTL(KC_N):
+        case _GUI(KC_X):
         case _SFT(KC_E):
-        case _GUI(KC_H):
+        case _CTL(KC_A):
         case _ALT(KC_I):
+        case _GUI(KC_QUOT):
             return true;
     }
     return false; // Disable otherwise.
