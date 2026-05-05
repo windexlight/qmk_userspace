@@ -530,6 +530,13 @@ const key_override_t *key_overrides[] = {
 };
 
 // Consider using get_flow_tap_term to ease nvim delay issues as necessary
+// Problem: when activating symbol layer, and typing two symbols in rapid succession before layer has been fully settled, such
+// that the first key activates speculative hold from the base layer, then has to send dummy mod (which I have set to shift because
+// of stupid Word), it is possible for the second symbol to be seen with shift active, and therefore to get an unintentionally
+// shifted symbol. Example: getting !+ instead of !=.
+// Seems like it might be due to tap_code (which is used for sending the dummy press) using a wait call between press and release,
+// and possibly keypresses from the secondary half being processed by interrupt, meaning if the second symbol key gets pressed during
+// the delay, it can be sent to the host with the mod still down.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         KC_TAB,           KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
