@@ -11,7 +11,7 @@
 #define MASTER_RIGHT
 // #define SPLIT_USB_DETECT
 
-#define DUMMY_MOD_NEUTRALIZER_KEYCODE KC_RSFT
+#define DUMMY_MOD_NEUTRALIZER_KEYCODE KC_NUM_LOCK
 
 // TODO -- Add to this if there are other combos that cause bad side effects
 #define MODS_TO_NEUTRALIZE { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
