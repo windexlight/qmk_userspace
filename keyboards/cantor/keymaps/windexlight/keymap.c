@@ -51,6 +51,8 @@ enum layers {
 #define _NUM(x) LT(_NUM_LAYER, x)
 #define _FUN(x) LT(_FUN_LAYER, x)
 
+#define HEARTBEAT_TIMEOUT_MS 1500
+
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
@@ -372,6 +374,13 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         raw_hid_report[1] = 0xEF;
         raw_hid_send(raw_hid_report, RAW_EPSIZE);
     } else if (data[0] == 0xBF) {
+        send_raw_hid_reports = false;
+        suppress_real_reports = false;
+    }
+}
+
+void housekeeping_task_user() {
+    if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
     }
