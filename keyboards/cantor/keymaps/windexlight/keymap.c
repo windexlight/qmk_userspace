@@ -485,9 +485,11 @@ void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
     }
 }
 
-void tap_dance_omni_reset(tap_dance_state_t *state, void *user_data) {
-    if (host_keyboard_led_state().scroll_lock) {
-        tap_scrl_no_mods();
+void tap_dance_omni_each_release(tap_dance_state_t *state, void *user_data) {
+    if (state->count == 1) {
+        if (host_keyboard_led_state().scroll_lock) {
+            tap_scrl_no_mods();
+        }
     }
 }
 
@@ -509,7 +511,7 @@ void tap_dance_caps_finished(tap_dance_state_t *state, void *user_data) {
 
 
 tap_dance_action_t tap_dance_actions[] = {
-    [TD_OMNI] = ACTION_TAP_DANCE_FN_ADVANCED(tap_dance_omni_each, tap_dance_omni_finished, tap_dance_omni_reset),
+    [TD_OMNI] = ACTION_TAP_DANCE_FN_ADVANCED_WITH_RELEASE(tap_dance_omni_each, tap_dance_omni_each_release, tap_dance_omni_finished, NULL),
     [TD_BOOT] = ACTION_TAP_DANCE_FN(tap_dance_boot_finished),
     [TD_CAPS] = ACTION_TAP_DANCE_FN(tap_dance_caps_finished),
 };
@@ -600,10 +602,10 @@ const key_override_t *key_overrides[] = {
 // Possibly consider disabling tap flow for space and other whitespace, and see how that feels.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        KC_TAB,           KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
-        TD(TD_OMNI), _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
-        KC_ENT,      _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
-                                                    KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
+        TD(TD_OMNI),      KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
+        KC_ENT,      _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
+        KC_DEL,      _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
+                                                    KC_TAB, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
