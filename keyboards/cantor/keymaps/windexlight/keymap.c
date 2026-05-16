@@ -556,50 +556,8 @@ const key_override_t *key_overrides[] = {
 };
 
 // Consider using get_flow_tap_term to ease nvim delay issues as necessary
-// Problem: when activating symbol layer, and typing two symbols in rapid succession before layer has been fully settled, such
-// that the first key activates speculative hold from the base layer, then has to send dummy mod (which I have set to shift because
-// of stupid Word), it is possible for the second symbol to be seen with shift active, and therefore to get an unintentionally
-// shifted symbol. Example: getting !+ instead of !=.
-// Seems like it might be due to tap_code (which is used for sending the dummy press) using a wait call between press and release,
-// and possibly keypresses from the secondary half being processed by interrupt, meaning if the second symbol key gets pressed during
-// the delay, it can be sent to the host with the mod still down.
-// No, none of the above is correct. Does not depenend on second half. The shift actually seems to be coming from the first symbol
-// being one that needs a shift, in combination with the second one not, and being held domn at the same moment that LT is settled
-// as held (meaning when the first key is released, because of permissive hold). Demonstrated that shift is not coming from
-// the speculative hold neutralizer
-// Example log of sequence outside tapping term vs inside:
-// 2026-05-08T19:08:28.497756 [<scancode.LAlt: 56>] []
-// 2026-05-08T19:08:28.641546 [<scancode.LAlt: 56>] [<scancode.NumLock: 69>]
-// 2026-05-08T19:08:28.656923 [<scancode.LAlt: 56>] []
-// 2026-05-08T19:08:28.673413 [] []
-// 2026-05-08T19:08:28.689567 [] [<scancode.S: 31>]
-// 2026-05-08T19:08:28.705131 [] []
-// 2026-05-08T19:08:40.831874 [<scancode.LAlt: 56>] []
-// 2026-05-08T19:08:45.223838 [] []
-// 2026-05-08T19:08:53.079100 [<scancode.LShift: 42>] []
-// 2026-05-08T19:08:53.095116 [<scancode.LShift: 42>] [<scancode.OneExclam: 2>]
-// 2026-05-08T19:08:53.175696 [] [<scancode.OneExclam: 2>, <scancode.EqualPlus: 13>]
-// 2026-05-08T19:08:53.295293 [] [<scancode.EqualPlus: 13>]
-// 2026-05-08T19:08:53.319828 [] []
-// 2026-05-08T19:09:31.084868 [<scancode.LAlt: 56>] []
-// 2026-05-08T19:09:31.229016 [<scancode.LAlt: 56>] [<scancode.NumLock: 69>]
-// 2026-05-08T19:09:31.244306 [<scancode.LAlt: 56>] []
-// 2026-05-08T19:09:31.261204 [] []
-// 2026-05-08T19:09:31.277263 [<scancode.LShift: 42>] []
-// 2026-05-08T19:09:31.292467 [<scancode.LShift: 42>] [<scancode.OneExclam: 2>]
-// 2026-05-08T19:09:31.308519 [<scancode.LShift: 42>] [<scancode.OneExclam: 2>, <scancode.EqualPlus: 13>]
-// 2026-05-08T19:09:31.324591 [<scancode.LShift: 42>] [<scancode.EqualPlus: 13>]
-// 2026-05-08T19:09:31.340617 [] [<scancode.EqualPlus: 13>]
-// 2026-05-08T19:09:31.356874 [] []
-// 2026-05-08T19:09:45.420230 [] [<scancode.ScrollLock: 70>]
-// 2026-05-08T19:09:45.435349 [] []
-//
 // Also, things I'm just not that happy with currently:
-// Placement of enter key requires a little bit of an awkward stretch.
-// Sharing of drag scroll key with copy/paste/undo makes for some awkward accdental scrolls sometimes.
-// Holding drag scroll with pinky feels a little fatiguing, but oddly I don't seem to have that problem at work.
 // Tap flow would be better turned off for heavy editing, like in nvim.
-// Possibly consider disabling tap flow for space and other whitespace, and see how that feels.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         TD(TD_OMNI),      KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
