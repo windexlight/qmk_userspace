@@ -1,6 +1,3 @@
-// Copyright 2022 Diego Palacios (@diepala)
-// SPDX-License-Identifier: GPL-2.0
-
 #include "action.h"
 #include "action_util.h"
 #include "keyboard.h"
@@ -12,20 +9,33 @@
 #include <assert.h>
 #include QMK_KEYBOARD_H
 
-void send_raw_hid_report(void);
 void send_keyboard_user(report_keyboard_t* report);
 void send_nkro_user(report_nkro_t* report);
 void send_extra_user(report_extra_t* report);
 uint8_t USAGE2KEYCODE(uint16_t usage);
 
+static void send_raw_hid_report(void);
+static void process_shared_keys_remote(uint32_t keys);
+static void shared_key_event_local(uint8_t key, bool pressed);
+static void shared_keys_send(void);
+static void shared_key_event(uint8_t key, bool pressed);
 
 enum layers {
     _MAGIC_STURDY,
     _NAV_LAYER,
+    _NAV_L_LAYER,
     _SYM_L_LAYER,
     _SYM_R_LAYER,
     _NUM_LAYER,
     _FUN_LAYER,
+};
+
+enum shared_keys {
+    _SK_DRAG_SCROLL,
+    _SK_NUM,
+    _SK_FUN,
+    _SK_SYM,
+    _SK_NAV,
 };
 
 #define MAGIC QK_AREP
@@ -51,7 +61,7 @@ enum layers {
 #define _NUM(x) LT(_NUM_LAYER, x)
 #define _FUN(x) LT(_FUN_LAYER, x)
 
-#define HEARTBEAT_TIMEOUT_MS 1500
+#define HEARTBEAT_TIMEOUT_MS 500
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
@@ -89,6 +99,10 @@ static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
 
+static bool host_connection = false;
+static uint32_t shared_keys_local = 0;
+static uint32_t shared_keys_remote = 0;
+
 static report_nkro_t nkro_report_user = {
     .report_id = REPORT_ID_NKRO,
     .mods = 0,
@@ -102,6 +116,7 @@ void (*send_extra_real)(report_extra_t *) = NULL;
 extern matrix_row_t matrix[MATRIX_ROWS];
 
 extern host_driver_t chibios_driver;
+
 
 // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
 // An enhanced version of SEND_STRING: if Caps Word is active, the Shift key is
@@ -349,33 +364,40 @@ void send_extra_user(report_extra_t* report) {
     }
 }
 
-void send_raw_hid_report() {
+static void send_raw_hid_report() {
     static_assert(sizeof(report_nkro_t) == RAW_EPSIZE, "report_nkro_t does not match raw HID report size");
     raw_hid_send((uint8_t*)&nkro_report_user, RAW_EPSIZE);
 
-    static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
-    static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
-    static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
-    static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
-    raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
-    raw_hid_report[1] = 0; //active_layer;
-    raw_hid_report[2] = MATRIX_ROWS;
-    raw_hid_report[3] = MATRIX_COLS;
-    memcpy(raw_hid_report+4, matrix, sizeof(matrix));
-    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    // static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
+    // static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
+    // static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
+    // static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
+    // raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
+    // raw_hid_report[1] = 0; //active_layer;
+    // raw_hid_report[2] = MATRIX_ROWS;
+    // raw_hid_report[3] = MATRIX_COLS;
+    // memcpy(raw_hid_report+4, matrix, sizeof(matrix));
+    // raw_hid_send(raw_hid_report, RAW_EPSIZE);
 }
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
-    if(data[0] == 0xBE) {
-        last_heartbeat_time = timer_read32();
+    if (length == 0) {
+        return;
+    }
+    if (data[0] == 0xBE) {
         send_raw_hid_reports = true;
         suppress_real_reports = true;
-        memset(raw_hid_report, 0, sizeof(raw_hid_report));
-        raw_hid_report[1] = 0xEF;
-        raw_hid_send(raw_hid_report, RAW_EPSIZE);
     } else if (data[0] == 0xBF) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
+    } else if (data[0] == 0xC0) {
+        last_heartbeat_time = timer_read32();
+        host_connection = true;
+        shared_keys_send();
+    } else if (data[0] == 0xC1) {
+        if (length >= 5) {
+            process_shared_keys_remote(data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24));
+        }
     }
 }
 
@@ -383,7 +405,79 @@ void housekeeping_task_user() {
     if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
+        host_connection = false;
+        process_shared_keys_remote(0);
     }
+}
+
+static void process_shared_keys_remote(uint32_t keys) {
+    if (keys != shared_keys_remote) {
+        uint8_t i, b;
+        for (i = 0; i < 32; i++) {
+            b = 1 << i;
+            if (keys & b) {
+                if (!(shared_keys_remote & b)) {
+                    shared_key_event(i, true);
+                }
+            } else {
+                if (shared_keys_remote & b) {
+                    shared_key_event(i, false);
+                }
+            }
+        }
+        shared_keys_remote = keys;
+    }
+}
+
+static void shared_key_event_local(uint8_t key, bool pressed) {
+    if (key >= 32) {
+        return;
+    }
+    uint32_t keys = shared_keys_local;
+    if (pressed) {
+        keys |= (1 << key);
+    } else {
+        keys &= ~(1 << key);
+    }
+    if (keys != shared_keys_local) {
+        if ((shared_keys_local | shared_keys_remote) != (keys | shared_keys_remote)) {
+            shared_key_event(key, pressed);
+        }
+        shared_keys_local = keys;
+        shared_keys_send();
+    }
+}
+
+static void shared_keys_send(void) {
+    memset(raw_hid_report, 0, sizeof(raw_hid_report));
+    raw_hid_report[0] = 0xC0;
+    raw_hid_report[1] = shared_keys_local & 0xFF;
+    raw_hid_report[2] = (shared_keys_local >> 8) & 0xFF;
+    raw_hid_report[3] = (shared_keys_local >> 16) & 0xFF;
+    raw_hid_report[4] = (shared_keys_local >> 24) & 0xFF;
+    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+}
+
+static void shared_key_event(uint8_t key, bool pressed) {
+    action_t action = {};
+    switch (key) {
+        default:
+            return;
+        case _SK_NUM:
+            action.code = ACTION_LAYER_MOMENTARY(_NUM_LAYER);
+            break;
+        case _SK_FUN:
+            action.code = ACTION_LAYER_MOMENTARY(_FUN_LAYER);
+            break;
+        case _SK_SYM:
+            action.code = ACTION_LAYER_MOMENTARY(_SYM_L_LAYER);
+            break;
+        case _SK_NAV:
+            action.code = ACTION_LAYER_MOMENTARY(_NAV_L_LAYER);
+            break;
+    }
+    keyrecord_t record = { .event = MAKE_KEYEVENT(0, 0, pressed) };
+    process_action(&record, action);
 }
 
 uint8_t USAGE2KEYCODE(uint16_t usage) {
@@ -479,7 +573,9 @@ void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
 
 void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
-        if (!host_keyboard_led_state().scroll_lock) {
+        if (host_connection) {
+            shared_key_event_local(_SK_DRAG_SCROLL, true);
+        } else if (!host_keyboard_led_state().scroll_lock) {
             tap_scrl_no_mods();
         }
     }
@@ -487,7 +583,9 @@ void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
 
 void tap_dance_omni_each_release(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
-        if (host_keyboard_led_state().scroll_lock) {
+        if (host_connection) {
+            shared_key_event_local(_SK_DRAG_SCROLL, false);
+        } else if (host_keyboard_led_state().scroll_lock) {
             tap_scrl_no_mods();
         }
     }
@@ -555,9 +653,37 @@ const key_override_t *key_overrides[] = {
 	&coln_key_override,
 };
 
+
+/*    0   1   2   3   4   5           0   1   2   3   4   5
+*  ┌───┬───┬───┬───┬───┬───┐       ┌───┬───┬───┬───┬───┬───┐
+* 0│   │   │   │   │   │   │      4│   │   │   │   │   │   │
+*  ├───┼───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┼───┤
+* 1│   │   │   │   │   │   │      5│   │   │   │   │   │   │
+*  ├───┼───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┼───┤
+* 2│   │   │   │   │   │   │      6│   │   │   │   │   │   │
+*  └───┴───┴───┴───┴───┴───┘       └───┴───┴───┴───┴───┴───┘
+*                  0                       2
+*                ┌───┐ 1               1 ┌───┐
+*               3│   ├───┐ 2       0 ┌───┤   │
+*                └───┤   ├───┐   ┌───┤   ├───┘
+*                    └───┤   │  7│   ├───┘
+*                        └───┘   └───┘
+*/
+
+// To execute a fake key event at a given matrix position:
+// action_exec(MAKE_KEYEVENT(row, col, key_pressed));
+// key_pressed is bool
+// rows and cols of matrix are marked above
+// should be able to make the matrix bigger to define virtual keys if needed
+//
+// can also construct an action using one of the macros you can see in
+// action_for_keycode, construct an event like above (think matrix position
+// could be ignored for this), and then call process_action(record, action)
+//
 // Consider using get_flow_tap_term to ease nvim delay issues as necessary
 // Also, things I'm just not that happy with currently:
 // Tap flow would be better turned off for heavy editing, like in nvim.
+// Too easy to accidentally execute a paste when drag scrolling.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         TD(TD_OMNI),      KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
@@ -570,6 +696,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_LALT, KC_LCTL, KC_LSFT, KC_NO, KC_NO,   KC_PGDN, KC_LEFT, KC_DOWN, KC_RGHT, KC_NO, KC_TRNS,
         KC_TRNS, KC_LGUI, KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_NO,   _BAK,    KC_NO,   _FWD,    KC_NO, KC_TRNS,
                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    ),
+    [_NAV_L_LAYER] = LAYOUT_split_3x6_3(
+        KC_TRNS, KC_NO, KC_HOME, KC_UP,   KC_END,  KC_PGUP,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_TRNS, KC_NO, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_TRNS, KC_NO, _BAK,    KC_NO,   _FWD,    KC_NO,      KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+                                 KC_TRNS, KC_TRNS, KC_TRNS,    KC_NO, KC_NO, KC_NO
     ),
     [_SYM_L_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_GRV,  KC_LABK, KC_RABK, KC_MINS, KC_PIPE,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
