@@ -9,12 +9,16 @@
 #include <assert.h>
 #include QMK_KEYBOARD_H
 
-void send_raw_hid_report(void);
 void send_keyboard_user(report_keyboard_t* report);
 void send_nkro_user(report_nkro_t* report);
 void send_extra_user(report_extra_t* report);
 uint8_t USAGE2KEYCODE(uint16_t usage);
 
+static void send_raw_hid_report(void);
+static void process_shared_keys_remote(uint32_t keys);
+static void shared_key_event_local(uint8_t key, bool pressed);
+static void shared_keys_send(void);
+static void shared_key_event(uint8_t key, bool pressed);
 
 enum layers {
     _MAGIC_STURDY,
@@ -57,8 +61,7 @@ enum shared_keys {
 #define _NUM(x) LT(_NUM_LAYER, x)
 #define _FUN(x) LT(_FUN_LAYER, x)
 
-#define HEARTBEAT_TIMEOUT_MS 1500
-#define HEARTBEAT_TIMEOUT_SHARED_KEYS_MS 500
+#define HEARTBEAT_TIMEOUT_MS 500
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
@@ -96,8 +99,7 @@ static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
 
-static uint32_t last_heartbeat_time_shared_keys = 0;
-static bool shared_keys_host_connection = false;
+static bool host_connection = false;
 static uint32_t shared_keys_local = 0;
 static uint32_t shared_keys_remote = 0;
 
@@ -362,20 +364,20 @@ void send_extra_user(report_extra_t* report) {
     }
 }
 
-void send_raw_hid_report() {
+static void send_raw_hid_report() {
     static_assert(sizeof(report_nkro_t) == RAW_EPSIZE, "report_nkro_t does not match raw HID report size");
     raw_hid_send((uint8_t*)&nkro_report_user, RAW_EPSIZE);
 
-    static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
-    static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
-    static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
-    static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
-    raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
-    raw_hid_report[1] = 0; //active_layer;
-    raw_hid_report[2] = MATRIX_ROWS;
-    raw_hid_report[3] = MATRIX_COLS;
-    memcpy(raw_hid_report+4, matrix, sizeof(matrix));
-    raw_hid_send(raw_hid_report, RAW_EPSIZE);
+    // static_assert(REPORT_ID_NKRO == 6, "REPORT_ID_NKRO unexpected value");
+    // static_assert(sizeof(matrix) <= RAW_EPSIZE-4, "Matrix too big for raw HID report size");
+    // static_assert(MATRIX_ROWS <= 0xFF, "Too many matrix rows for raw HID report");
+    // static_assert(MATRIX_COLS <= 0xFF, "Too many matrix cols for raw HID report");
+    // raw_hid_report[0] = 1; // non-standard report ID, we only need to stay away from REPORT_ID_NKRO
+    // raw_hid_report[1] = 0; //active_layer;
+    // raw_hid_report[2] = MATRIX_ROWS;
+    // raw_hid_report[3] = MATRIX_COLS;
+    // memcpy(raw_hid_report+4, matrix, sizeof(matrix));
+    // raw_hid_send(raw_hid_report, RAW_EPSIZE);
 }
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
@@ -383,18 +385,14 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         return;
     }
     if (data[0] == 0xBE) {
-        last_heartbeat_time = timer_read32();
         send_raw_hid_reports = true;
         suppress_real_reports = true;
-        memset(raw_hid_report, 0, sizeof(raw_hid_report));
-        raw_hid_report[1] = 0xEF;
-        raw_hid_send(raw_hid_report, RAW_EPSIZE);
     } else if (data[0] == 0xBF) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
     } else if (data[0] == 0xC0) {
-        last_heartbeat_time_shared_keys = timer_read32();
-        shared_keys_host_connection = true;
+        last_heartbeat_time = timer_read32();
+        host_connection = true;
         shared_keys_send();
     } else if (data[0] == 0xC1) {
         if (length >= 5) {
@@ -407,9 +405,7 @@ void housekeeping_task_user() {
     if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
-    }
-    if (timer_elapsed32(last_heartbeat_time_shared_keys) > HEARTBEAT_TIMEOUT_SHARED_KEYS_MS) {
-        shared_keys_host_connection = false;
+        host_connection = false;
         process_shared_keys_remote(0);
     }
 }
@@ -452,7 +448,7 @@ static void shared_key_event_local(uint8_t key, bool pressed) {
     }
 }
 
-static void shared_keys_send() {
+static void shared_keys_send(void) {
     memset(raw_hid_report, 0, sizeof(raw_hid_report));
     raw_hid_report[0] = 0xC0;
     raw_hid_report[1] = shared_keys_local & 0xFF;
@@ -577,7 +573,7 @@ void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
 
 void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
-        if (shared_keys_host_connection) {
+        if (host_connection) {
             shared_key_event_local(_SK_DRAG_SCROLL, true);
         } else if (!host_keyboard_led_state().scroll_lock) {
             tap_scrl_no_mods();
@@ -587,7 +583,7 @@ void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
 
 void tap_dance_omni_each_release(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
-        if (shared_keys_host_connection) {
+        if (host_connection) {
             shared_key_event_local(_SK_DRAG_SCROLL, false);
         } else if (host_keyboard_led_state().scroll_lock) {
             tap_scrl_no_mods();
