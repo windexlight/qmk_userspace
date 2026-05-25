@@ -108,17 +108,20 @@ static void shared_keys_send(void) {
 }
 
 // TODO -- This could be a weak override
+extern bool is_drag_scroll;
 static void shared_key_event(uint8_t key, bool pressed) {
-    action_t action = {};
+    // action_t action = {};
     switch (key) {
         default:
             return;
         case _SK_DRAG_SCROLL:
-            action.code = DRAG_SCROLL;
-            break;
+            is_drag_scroll = pressed;
+            return;
+            // action.code = DRAG_SCROLL;
+            // break;
     }
-    keyrecord_t record = { .event = MAKE_KEYEVENT(0, 0, pressed) };
-    process_action(&record, action);
+    // keyrecord_t record = { .event = MAKE_KEYEVENT(0, 0, pressed) };
+    // process_action(&record, action);
 }
 
 
