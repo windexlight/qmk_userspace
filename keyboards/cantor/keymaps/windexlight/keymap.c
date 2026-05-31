@@ -45,6 +45,8 @@ enum shared_keys {
 #define _FWD LALT(KC_RGHT)
 
 #define _UNDO LCTL(KC_Z)
+#define _REDO LCTL(KC_Y)
+#define _REDO2 LSFT(LCTL(KC_Z))
 #define _CUT LCTL(KC_X)
 #define _COPY LCTL(KC_C)
 #define _WIN KC_LGUI
@@ -91,8 +93,12 @@ enum custom_keycodes {
     M_LL,
     M_VE,
     M_NOOP,
+    _SK_START,
+    _SK_END = _SK_START + 32,
 };
 
+#define _SK(x) (_SK_START + (x))
+#define SK_DS _SK(_SK_DRAG_SCROLL)
 
 static uint32_t last_heartbeat_time = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
@@ -165,26 +171,16 @@ static void magic_send_string_P(const char* str, const char* shft_str, uint16_t 
     }
 }
 
-// Needed to avoid side effects when tapping sroll lock with certain mods (such as ctrl) held
-static void tap_scrl_no_mods(void) {
-    uint8_t mods = get_mods();
-    uint8_t weak_mods = get_weak_mods();
-    uint8_t oneshot_mods = get_oneshot_mods();
-    clear_mods();
-    clear_weak_mods();
-    clear_oneshot_mods();
-    tap_code(KC_SCRL);
-    set_mods(mods);
-    set_weak_mods(weak_mods);
-    set_oneshot_mods(oneshot_mods);
-}
-
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #ifdef CONSOLE_ENABLE
     uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
 #endif
     bool ret = true;
+    if (keycode >= _SK_START && keycode < _SK_END) {
+        shared_key_event_local(keycode - _SK_START, record->event.pressed);
+        return false;
+    }
     // if (keycode == _NAV(KC_T)) {
     //     if (record->event.pressed) {
     //         if (!host_keyboard_led_state().scroll_lock) {
@@ -548,48 +544,9 @@ uint8_t USAGE2KEYCODE(uint16_t usage) {
 }
 
 enum {
-    TD_OMNI,
     TD_BOOT,
     TD_CAPS,
 };
-
-void tap_dance_omni_finished(tap_dance_state_t *state, void *user_data) {
-    if (state->pressed) {
-        if (state->count == 2) {
-            SEND_STRING(SS_LCTL("z"));
-        } else if (state->count == 3) {
-            SEND_STRING(SS_DOWN(X_LCTL) SS_LSFT("z") SS_UP(X_LCTL));
-        }
-    } else {
-        if (state->count == 1) {
-            SEND_STRING(SS_LCTL("v"));
-        } else if (state->count == 2) {
-            SEND_STRING(SS_LCTL("c"));
-        } else if (state->count == 3) {
-            SEND_STRING(SS_LCTL("y"));
-        }
-    }
-}
-
-void tap_dance_omni_each(tap_dance_state_t *state, void *user_data) {
-    if (state->count == 1) {
-        if (host_connection) {
-            shared_key_event_local(_SK_DRAG_SCROLL, true);
-        } else if (!host_keyboard_led_state().scroll_lock) {
-            tap_scrl_no_mods();
-        }
-    }
-}
-
-void tap_dance_omni_each_release(tap_dance_state_t *state, void *user_data) {
-    if (state->count == 1) {
-        if (host_connection) {
-            shared_key_event_local(_SK_DRAG_SCROLL, false);
-        } else if (host_keyboard_led_state().scroll_lock) {
-            tap_scrl_no_mods();
-        }
-    }
-}
 
 void tap_dance_boot_finished(tap_dance_state_t *state, void *user_data) {
     if (state->count == 3) {
@@ -609,7 +566,6 @@ void tap_dance_caps_finished(tap_dance_state_t *state, void *user_data) {
 
 
 tap_dance_action_t tap_dance_actions[] = {
-    [TD_OMNI] = ACTION_TAP_DANCE_FN_ADVANCED_WITH_RELEASE(tap_dance_omni_each, tap_dance_omni_each_release, tap_dance_omni_finished, NULL),
     [TD_BOOT] = ACTION_TAP_DANCE_FN(tap_dance_boot_finished),
     [TD_CAPS] = ACTION_TAP_DANCE_FN(tap_dance_caps_finished),
 };
@@ -617,7 +573,6 @@ tap_dance_action_t tap_dance_actions[] = {
 
 uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        case TD(TD_OMNI):
         case TD(TD_BOOT):
         case TD(TD_CAPS):
             return 250;
@@ -686,10 +641,10 @@ const key_override_t *key_overrides[] = {
 // Too easy to accidentally execute a paste when drag scrolling.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        TD(TD_OMNI),      KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
-        KC_ENT,      _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
-        KC_DEL,      _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
-                                                    KC_TAB, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
+        SK_DS,        KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
+        KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
+        KC_DEL,  _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
+                                                KC_TAB, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
@@ -698,9 +653,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NAV_L_LAYER] = LAYOUT_split_3x6_3(
-        KC_TRNS, KC_NO, KC_HOME, KC_UP,   KC_END,  KC_PGUP,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-        KC_TRNS, KC_NO, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-        KC_TRNS, KC_NO, _BAK,    KC_NO,   _FWD,    KC_NO,      KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_TRNS, _PSTE, KC_NO,   KC_UP,   _COPY,   KC_PSCR,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_TRNS, _UNDO, KC_LEFT, KC_DOWN, KC_RGHT, _REDO,      KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_TRNS, _CUT,  _BAK,    KC_NO,   _FWD,    _REDO2,     KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
                                  KC_TRNS, KC_TRNS, KC_TRNS,    KC_NO, KC_NO, KC_NO
     ),
     [_SYM_L_LAYER] = LAYOUT_split_3x6_3(
