@@ -169,6 +169,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    [0] = LAYOUT( TD(TD_OMNI), SK_LY(_SK_NAV), SK_LY(_SK_SYM), SK_LY(_SK_FUN), MS_BTN1, MS_BTN2 )
+    [0] = LAYOUT( TD(TD_OMNI), SK_LY(_SK_FUN), SK_LY(_SK_SYM), SK_LY(_SK_NAV), MS_BTN1, MS_BTN2 )
 };
 
