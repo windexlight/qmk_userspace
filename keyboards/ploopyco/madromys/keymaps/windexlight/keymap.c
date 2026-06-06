@@ -2,7 +2,7 @@
 #include "usb_descriptor.h"
 #include QMK_KEYBOARD_H
 
-#define HEARTBEAT_TIMEOUT_MS 500
+#define HEARTBEAT_TIMEOUT_MS 2000
 
 static void process_shared_keys_remote(uint32_t keys);
 static void shared_key_event_local(uint8_t key, bool pressed);
@@ -41,7 +41,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
     }
     if (data[0] == 0xC0) {
         last_heartbeat_time = timer_read32();
-        shared_keys_send();
+        // shared_keys_send();
     } else if (data[0] == 0xC1) {
         if (length >= 5) {
             process_shared_keys_remote(data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24));

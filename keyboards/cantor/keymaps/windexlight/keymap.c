@@ -63,7 +63,7 @@ enum shared_keys {
 #define _NUM(x) LT(_NUM_LAYER, x)
 #define _FUN(x) LT(_FUN_LAYER, x)
 
-#define HEARTBEAT_TIMEOUT_MS 500
+#define HEARTBEAT_TIMEOUT_MS 2000
 
 enum custom_keycodes {
     EX_LAYER = SAFE_RANGE,
@@ -105,7 +105,7 @@ static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
 
-static bool host_connection = false;
+// static bool host_connection = false;
 static uint32_t shared_keys_local = 0;
 static uint32_t shared_keys_remote = 0;
 
@@ -388,8 +388,8 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         suppress_real_reports = false;
     } else if (data[0] == 0xC0) {
         last_heartbeat_time = timer_read32();
-        host_connection = true;
-        shared_keys_send();
+        // host_connection = true;
+        // shared_keys_send();
     } else if (data[0] == 0xC1) {
         if (length >= 5) {
             process_shared_keys_remote(data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24));
@@ -401,7 +401,7 @@ void housekeeping_task_user() {
     if (timer_elapsed32(last_heartbeat_time) > HEARTBEAT_TIMEOUT_MS) {
         send_raw_hid_reports = false;
         suppress_real_reports = false;
-        host_connection = false;
+        // host_connection = false;
         process_shared_keys_remote(0);
     }
 }
