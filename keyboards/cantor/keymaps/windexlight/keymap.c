@@ -51,6 +51,16 @@ enum shared_keys {
 #define _COPY LCTL(KC_C)
 #define _WIN KC_LGUI
 #define _PSTE LCTL(KC_V)
+#define _BTAB LSFT(KC_TAB)
+#define _SAVE LCTL(KC_S)
+#define _ALL LCTL(KC_A)
+#define _ATAB LALT(KC_TAB)
+#define _GTAB LGUI(KC_TAB)
+#define _EXIT LALT(KC_F4)
+#define _NTAB LCTL(KC_T)
+#define _CLSE LCTL(KC_W)
+#define _NEW LCTL(KC_N)
+#define _EXPL LGUI(KC_E)
 
 #define _CTL(x) LCTL_T(x)
 #define _SFT(x) LSFT_T(x)
@@ -643,8 +653,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
         KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
-        KC_DEL,  _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), KC_COLN,
-                                                KC_TAB, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, QK_LEAD
+        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), QK_LEAD,
+                                                KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
@@ -653,10 +663,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_NAV_L_LAYER] = LAYOUT_split_3x6_3(
-        KC_TRNS, _PSTE, KC_NO,   KC_UP,   _COPY,   KC_PSCR,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-        KC_TRNS, _UNDO, KC_LEFT, KC_DOWN, KC_RGHT, _REDO,      KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-        KC_TRNS, _CUT,  _BAK,    KC_NO,   _FWD,    _REDO2,     KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
-                                 KC_TRNS, KC_TRNS, KC_TRNS,    KC_NO, KC_NO, KC_NO
+           _NEW, _PSTE, _ALL,    KC_UP,   _COPY,   KC_PSCR,    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_LGUI, _UNDO, KC_LEFT, KC_DOWN, KC_RGHT, _REDO,      KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+          _BTAB, _CUT,  _BAK,    _SAVE,   _FWD,    _REDO2,     KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, KC_NO,
+                                       _EXIT, _NTAB, _CLSE,    KC_NO, KC_NO, KC_NO
     ),
     [_SYM_L_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_GRV,  KC_LABK, KC_RABK, KC_MINS, KC_PIPE,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
@@ -672,14 +682,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_NUM_LAYER] = LAYOUT_split_3x6_3(
         TD(TD_BOOT), KC_PLUS, KC_9, KC_8, KC_7, KC_ASTR,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
-        KC_TRNS,     KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
-        KC_TRNS,     KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+        _EXPL,       KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
+        _ATAB,       KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
                                  KC_TRNS, KC_0, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FUN_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO, KC_F9, KC_F8, KC_F7, KC_F10,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
         KC_TRNS, KC_NO, KC_F3, KC_F2, KC_F1, KC_F11,   KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
-        KC_TRNS, KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+        _GTAB,   KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
 };
