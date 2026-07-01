@@ -22,6 +22,7 @@ static void shared_key_event(uint8_t key, bool pressed);
 
 enum layers {
     _MAGIC_STURDY,
+    _QWERTY_NVIM,
     _NAV_LAYER,
     _NAV_L_LAYER,
     _SYM_L_LAYER,
@@ -36,6 +37,7 @@ enum shared_keys {
     _SK_FUN,
     _SK_SYM,
     _SK_NAV,
+    _SK_NVIM = 31,
 };
 
 #define MAGIC QK_AREP
@@ -114,6 +116,7 @@ static uint32_t last_heartbeat_time = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
+static bool nvim_normal_mode_active = false;
 
 // static bool host_connection = false;
 static uint32_t shared_keys_local = 0;
@@ -481,6 +484,15 @@ static void shared_key_event(uint8_t key, bool pressed) {
         case _SK_NAV:
             action.code = ACTION_LAYER_MOMENTARY(_NAV_L_LAYER);
             break;
+        case _SK_NVIM:
+            if (pressed) {
+                nvim_normal_mode_active = true;
+                set_single_default_layer(_QWERTY_NVIM);
+            } else {
+                nvim_normal_mode_active = false;
+                set_single_default_layer(_MAGIC_STURDY);
+            }
+            return;
     }
     keyrecord_t record = { .event = MAKE_KEYEVENT(0, 0, pressed) };
     process_action(&record, action);
@@ -606,6 +618,14 @@ bool is_flow_tap_key(uint16_t keycode) {
     return false;
 }
 
+uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t* record, uint16_t prev_keycode) {
+    if (nvim_normal_mode_active || !is_flow_tap_key(keycode) || !is_flow_tap_key(prev_keycode)) {
+        return 0;
+    } else {
+        return FLOW_TAP_TERM;
+    }
+}
+
 const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COMM, KC_QUES);
 const key_override_t dot_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_DOT, KC_EXLM);
 const key_override_t unds_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_UNDS, KC_MINS);
@@ -648,13 +668,18 @@ const key_override_t *key_overrides[] = {
 // Consider using get_flow_tap_term to ease nvim delay issues as necessary
 // Also, things I'm just not that happy with currently:
 // Tap flow would be better turned off for heavy editing, like in nvim.
-// Too easy to accidentally execute a paste when drag scrolling.
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
-        SK_DS,        KC_V,       KC_M,       KC_L,        KC_C,  KC_P,        KC_B,       MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
-        KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R),  _NAV(KC_D), KC_Y,   _FUN(KC_F),  _NUM(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
-        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J, _SYM_R(KC_G), KC_W,        KC_Z, _SYM_L(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), QK_LEAD,
-                                                KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
+        SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
+        KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R), _SYM_R(KC_D), _NAV(KC_Y),   _NUM(KC_F), _SYM_L(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
+        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J,         KC_G,       KC_W,         KC_Z,    _FUN(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), QK_LEAD,
+                                                        KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
+    ),
+    [_QWERTY_NVIM] = LAYOUT_split_3x6_3(
+        SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,  TD(TD_CAPS),
+        KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_COLN), KC_BSPC,
+        KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
+                                                        KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
