@@ -37,7 +37,8 @@ enum shared_keys {
     _SK_FUN,
     _SK_SYM,
     _SK_NAV,
-    _SK_NVIM = 31,
+    _SK_NVIM = 30,
+    _SK_NVIM_NORMAL,
 };
 
 #define MAGIC QK_AREP
@@ -116,7 +117,7 @@ static uint32_t last_heartbeat_time = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
 static bool send_raw_hid_reports = false;
-static bool nvim_normal_mode_active = false;
+static bool nvim_active = false;
 
 // static bool host_connection = false;
 static uint32_t shared_keys_local = 0;
@@ -486,14 +487,16 @@ static void shared_key_event(uint8_t key, bool pressed) {
             action.code = ACTION_LAYER_MOMENTARY(_NAV_L_LAYER);
             break;
         case _SK_NVIM:
+            nvim_active = pressed;
+            return;
+        case _SK_NVIM_NORMAL:
             if (pressed) {
-                nvim_normal_mode_active = true;
                 set_single_default_layer(_QWERTY_NVIM);
             } else {
-                nvim_normal_mode_active = false;
                 set_single_default_layer(_MAGIC_STURDY);
             }
             return;
+
     }
     keyrecord_t record = { .event = MAKE_KEYEVENT(0, 0, pressed) };
     process_action(&record, action);
@@ -620,7 +623,7 @@ bool is_flow_tap_key(uint16_t keycode) {
 }
 
 uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t* record, uint16_t prev_keycode) {
-    if (nvim_normal_mode_active || !is_flow_tap_key(keycode) || !is_flow_tap_key(prev_keycode)) {
+    if (nvim_active || !is_flow_tap_key(keycode) || !is_flow_tap_key(prev_keycode)) {
         return 0;
     } else {
         return FLOW_TAP_TERM;
@@ -630,13 +633,13 @@ uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t* record, uint16_t prev_
 const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COMM, KC_QUES);
 const key_override_t dot_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_DOT, KC_EXLM);
 const key_override_t unds_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_UNDS, KC_MINS);
-const key_override_t coln_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COLN, KC_SCLN);
+// const key_override_t coln_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COLN, KC_SCLN);
 
 const key_override_t *key_overrides[] = {
 	&comma_key_override,
 	&dot_key_override,
 	&unds_key_override,
-	&coln_key_override,
+	// &coln_key_override,
 };
 
 
@@ -666,9 +669,9 @@ const key_override_t *key_overrides[] = {
 // action_for_keycode, construct an event like above (think matrix position
 // could be ignored for this), and then call process_action(record, action)
 //
-// Consider using get_flow_tap_term to ease nvim delay issues as necessary
-// Also, things I'm just not that happy with currently:
-// Tap flow would be better turned off for heavy editing, like in nvim.
+// Why does pressing f on qwerty layer followed immediately by d on magic strudy layer (i.e., the same key twice)
+// result in d being immedialely sent? Tap flow should be off both before and after.
+// Why is KC_COLN on qwerty layer not working?
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
@@ -918,6 +921,14 @@ uint16_t get_alt_repeat_key_keycode_user(uint16_t keycode, uint8_t mods) {
 
 bool get_speculative_hold(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) { // These keys may be speculatively held.
+        case _SFT(KC_D):
+        case _CTL(KC_S):
+        case _ALT(KC_A):
+        case _GUI(KC_Z):
+        case _SFT(KC_K):
+        case _CTL(KC_L):
+        case _ALT(KC_COLN):
+        case _GUI(KC_SLSH):
         case _SFT(KC_R):
         case _CTL(KC_T):
         case _ALT(KC_S):
