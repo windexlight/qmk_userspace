@@ -421,7 +421,8 @@ void housekeeping_task_user() {
 
 static void process_shared_keys_remote(uint32_t keys) {
     if (keys != shared_keys_remote) {
-        uint8_t i, b;
+        uint8_t i;
+        uint32_t b;
         for (i = 0; i < 32; i++) {
             b = 1 << i;
             if (keys & b) {
