@@ -630,6 +630,14 @@ uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t* record, uint16_t prev_
     }
 }
 
+uint16_t get_quick_tap_term(uint16_t keycode, keyrecord_t *record) {
+    if (nvim_active) {
+        return 0;
+    } else {
+        return QUICK_TAP_TERM;
+    }
+}
+
 const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COMM, KC_QUES);
 const key_override_t dot_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_DOT, KC_EXLM);
 const key_override_t unds_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_UNDS, KC_MINS);
@@ -669,9 +677,7 @@ const key_override_t *key_overrides[] = {
 // action_for_keycode, construct an event like above (think matrix position
 // could be ignored for this), and then call process_action(record, action)
 //
-// Why does pressing f on qwerty layer followed immediately by d on magic strudy layer (i.e., the same key twice)
-// result in d being immedialely sent? Tap flow should be off both before and after.
-// Why is KC_COLN on qwerty layer not working?
+// Why is KC_COLN on qwerty layer sending semicolon?
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
