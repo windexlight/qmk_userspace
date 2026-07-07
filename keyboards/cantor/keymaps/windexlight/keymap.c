@@ -677,7 +677,6 @@ const key_override_t *key_overrides[] = {
 // action_for_keycode, construct an event like above (think matrix position
 // could be ignored for this), and then call process_action(record, action)
 //
-// Why is KC_COLN on qwerty layer sending semicolon?
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
@@ -687,7 +686,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_QWERTY_NVIM] = LAYOUT_split_3x6_3(
         SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,  TD(TD_CAPS),
-        KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_COLN), KC_BSPC,
+        KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_SCLN), KC_BSPC,
         KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
                                                         KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
     ),
