@@ -283,18 +283,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         // Repeat key overrides
         if (rep_count > 0) {
             ret = false;
-            switch (keycode & 0xFF) {
-                case KC_A: MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
-                case KC_I: MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
-                case KC_Y: MAGIC_STRING(/*y*/"ou", /*y*/"ou", M_NOOP); break;
-                case KC_N: MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
-                case M_N:  MAGIC_STRING(/*n*/"n", /*n*/"n", M_NOOP); break;
-                case KC_B: MAGIC_STRING(/*b*/"ecause", /*b*/"ecause", M_NOOP); break;
-                case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
-                case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
-                case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
-                case KC_QUOT: MAGIC_STRING(/*'*/"ll", NULL, M_NOOP); break;
-                default: ret = true; break;
+            switch (keycode) {
+                case M_N: MAGIC_STRING(/*n*/"n", /*n*/"n", M_NOOP); break;
+                default:
+                    switch (keycode & 0xFF) {
+                        case KC_A: MAGIC_STRING(/*a*/"nd", /*a*/"nd", M_NOOP); break;
+                        case KC_I: MAGIC_STRING(/*i*/"ng", /*i*/"ng", KC_S); break;
+                        case KC_Y: MAGIC_STRING(/*y*/"ou", /*y*/"ou", M_NOOP); break;
+                        case KC_N: MAGIC_STRING(/*n*/"f", /*n*/"f", M_NOOP); break;
+                        case KC_B: MAGIC_STRING(/*b*/"ecause", /*b*/"ecause", M_NOOP); break;
+                        case KC_W: MAGIC_STRING(/*w*/"ould", /*w*/"ould", M_NOOP); break;
+                        case KC_COMM: MAGIC_STRING(/*,*/" and", NULL, M_NOOP); break;
+                        case KC_SPC: MAGIC_STRING(/* */"for", "For", M_NOOP); break;
+                        case KC_QUOT: MAGIC_STRING(/*'*/"ll", NULL, M_NOOP); break;
+                        default: ret = true; break;
+                    }
+                    break;
             }
         }
         if (keycode == KC_DEL) {
