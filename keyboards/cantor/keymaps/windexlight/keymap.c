@@ -692,7 +692,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,  TD(TD_CAPS),
         KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_SCLN), KC_BSPC,
         KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
-                                                        KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
+                                                       KC_LBRC, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_RBRC
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
