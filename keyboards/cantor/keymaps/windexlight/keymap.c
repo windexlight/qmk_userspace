@@ -28,6 +28,7 @@ enum layers {
     _SYM_L_LAYER,
     _SYM_R_LAYER,
     _NUM_LAYER,
+    _NUM_NVIM_LAYER,
     _FUN_LAYER,
 };
 
@@ -79,9 +80,10 @@ enum shared_keys {
 #define HEARTBEAT_TIMEOUT_MS 2000
 
 enum custom_keycodes {
-    EX_LAYER = SAFE_RANGE,
+    TSL_NUM = SAFE_RANGE,
     // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
     // Macros invoked through the Magic key.
+    OSL_NUM,
     UPDIR,
     M_N,
     M_DOCSTR,
@@ -113,6 +115,14 @@ enum custom_keycodes {
 #define _SK(x) (_SK_START + (x))
 #define SK_DS _SK(_SK_DRAG_SCROLL)
 
+typedef struct {
+    keypos_t pos;
+    uint16_t keycode;
+} key_needing_release_t;
+
+static key_needing_release_t keys_needing_release[10];
+static uint8_t keys_needing_release_count = 0;
+static uint8_t tsl_count = 0;
 static uint32_t last_heartbeat_time = 0;
 static uint8_t raw_hid_report[RAW_EPSIZE];
 static bool suppress_real_reports = false;
@@ -195,6 +205,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         shared_key_event_local(keycode - _SK_START, record->event.pressed);
         return false;
     }
+    if (keycode >= OSL_NUM && keycode <= TSL_NUM) {
+        if (record->event.pressed) {
+            if (tsl_count > 0) {
+                tsl_count = 0;
+                layer_off(_NUM_NVIM_LAYER);
+            } else {
+                tsl_count = 1 + (TSL_NUM - keycode);
+                layer_move(_NUM_NVIM_LAYER);
+            }
+        }
+        return false;
+    }
     // if (keycode == _NAV(KC_T)) {
     //     if (record->event.pressed) {
     //         if (!host_keyboard_led_state().scroll_lock) {
@@ -229,6 +251,17 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         }
     }
     if (record->event.pressed) {
+        if (tsl_count > 0) {
+            if (keycode < KC_1 || keycode > KC_0) {
+                tsl_count = 0;
+                layer_off(_NUM_NVIM_LAYER);
+            } else if (--tsl_count == 0) {
+                layer_off(_NUM_NVIM_LAYER);
+                if (keys_needing_release_count < sizeof(keys_needing_release)) {
+                    keys_needing_release[keys_needing_release_count++] = { .pos = record->event.key, .keycode = keycode };
+                }
+            }
+        }
         switch (keycode) {
             // https://github.com/getreuer/qmk-keymap/blob/main/getreuer.c
             // Macros invoked through the MAGIC key.
@@ -305,6 +338,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (((get_mods() | get_weak_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT) != 0) {
                 tap_code(KC_MINS);
                 ret = false;
+            }
+        }
+    } else { // Release
+        for (uint8_t i = 0; i < keys_needing_release_count; i++) {
+            if (keys_needing_release[i].pos.col == record->event.key.col &&
+                keys_needing_release[i].pos.row == record->event.key.row) {
+                unregister_code(keys_needing_release[i].keycode);
+                for (uint8_t j = i; j < keys_needing_release_count - 1; j++) {
+                    keys_needing_release[j] = keys_needing_release[j+1];
+                }
+                keys_needing_release_count--;
+                ret = false;
+                break;
             }
         }
     }
@@ -692,7 +738,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,  TD(TD_CAPS),
         KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_SCLN), KC_BSPC,
         KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
-                                                       KC_LBRC, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_RBRC
+                                                       KC_LBRC, KC_SPC, KC_ESC,      TSL_NUM, OSL_NUM, KC_RBRC
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
@@ -729,6 +775,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TRNS, KC_NO, KC_F3, KC_F2, KC_F1, KC_F11,   KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
         _GTAB,   KC_NO, KC_F6, KC_F5, KC_F4, KC_F12,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
                           KC_TRNS, KC_TRNS, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    ),
+    // Note that the logic for this layer explicitly relies on every base keycode that is NOT a digit
+    // being an exact match for _QWERTY_NVIM (or else needs to be KC_NO), otherwise keys may not be
+    // unregistered properly.
+    [_NUM_NVIM_LAYER] = LAYOUT_split_3x6_3(
+        KC_NO, KC_NO, KC_9, KC_8, KC_7, KC_NO,   KC_Y, KC_U, KC_I,    KC_O,   KC_P,    KC_NO,
+        KC_NO, KC_NO, KC_3, KC_2, KC_1, KC_NO,   KC_H, KC_J, KC_K,    KC_L,   KC_SCLN, KC_NO,
+        KC_NO, KC_NO, KC_6, KC_5, KC_4, KC_NO,   KC_N, KC_M, KC_COMM, KC_DOT, KC_SLSH, KC_NO,
+                         KC_NO, KC_0, KC_TRNS,   TSL_NUM, OSL_NUM, KC_NO
     ),
 };
 
