@@ -28,8 +28,8 @@ enum layers {
     _SYM_L_LAYER,
     _SYM_R_LAYER,
     _NUM_LAYER,
-    _NUM_NVIM_LAYER,
     _FUN_LAYER,
+    _NUM_NVIM_LAYER,
 };
 
 enum shared_keys {
@@ -213,7 +213,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 layer_off(_NUM_NVIM_LAYER);
             } else {
                 tsl_count = 1 + (TSL_NUM - keycode);
-                layer_move(_NUM_NVIM_LAYER);
+                layer_on(_NUM_NVIM_LAYER);
             }
         }
         return false;
