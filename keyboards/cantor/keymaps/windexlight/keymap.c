@@ -120,7 +120,8 @@ typedef struct {
     uint16_t keycode;
 } key_needing_release_t;
 
-static key_needing_release_t keys_needing_release[10];
+#define MAX_KEYS_NEEDING_RELEASE 10
+static key_needing_release_t keys_needing_release[MAX_KEYS_NEEDING_RELEASE];
 static uint8_t keys_needing_release_count = 0;
 static uint8_t tsl_count = 0;
 static uint32_t last_heartbeat_time = 0;
@@ -195,7 +196,7 @@ static void magic_send_string_P(const char* str, const char* shft_str, uint16_t 
     }
 }
 
-
+// Can somehow get stuck on a layer, like right symbol layer, for example... how?
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #ifdef CONSOLE_ENABLE
     uprintf("KL: kc: 0x%04X, col: %2u, row: %2u, pressed: %u, time: %5u, int: %u, count: %u\n", keycode, record->event.key.col, record->event.key.row, record->event.pressed, record->event.time, record->tap.interrupted, record->tap.count);
@@ -205,7 +206,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         shared_key_event_local(keycode - _SK_START, record->event.pressed);
         return false;
     }
-    if (keycode >= OSL_NUM && keycode <= TSL_NUM) {
+    if (keycode >= TSL_NUM && keycode <= OSL_NUM) {
         if (record->event.pressed) {
             if (tsl_count > 0) {
                 tsl_count = 0;
@@ -257,8 +258,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 layer_off(_NUM_NVIM_LAYER);
             } else if (--tsl_count == 0) {
                 layer_off(_NUM_NVIM_LAYER);
-                if (keys_needing_release_count < sizeof(keys_needing_release)) {
-                    keys_needing_release[keys_needing_release_count++] = { .pos = record->event.key, .keycode = keycode };
+                if (keys_needing_release_count < MAX_KEYS_NEEDING_RELEASE) {
+                    keys_needing_release[keys_needing_release_count++] = (key_needing_release_t){ .pos = record->event.key, .keycode = keycode };
                 }
             }
         }
