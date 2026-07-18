@@ -212,8 +212,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 tsl_count = 0;
                 layer_off(_NUM_NVIM_LAYER);
             } else {
-                tsl_count = 1 + (TSL_NUM - keycode);
-                layer_on(_NUM_NVIM_LAYER);
+                if (keycode == OSL_NUM) {
+                    tsl_count = 1;
+                } else if (keycode == TSL_NUM) {
+                    tsl_count = 2;
+                }
+                if (tsl_count > 0) {
+                    layer_on(_NUM_NVIM_LAYER);
+                }
             }
         }
         return false;
@@ -253,14 +259,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     }
     if (record->event.pressed) {
         if (tsl_count > 0) {
-            if (keycode < KC_1 || keycode > KC_0) {
-                tsl_count = 0;
+            if (--tsl_count == 0) {
                 layer_off(_NUM_NVIM_LAYER);
-            } else if (--tsl_count == 0) {
-                layer_off(_NUM_NVIM_LAYER);
+                register_code(keycode);
                 if (keys_needing_release_count < MAX_KEYS_NEEDING_RELEASE) {
                     keys_needing_release[keys_needing_release_count++] = (key_needing_release_t){ .pos = record->event.key, .keycode = keycode };
                 }
+                return false;
             }
         }
         switch (keycode) {
@@ -739,7 +744,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,  TD(TD_CAPS),
         KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_SCLN), KC_BSPC,
         KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
-                                                       KC_LBRC, KC_SPC, KC_ESC,      TSL_NUM, OSL_NUM, KC_RBRC
+                                                       KC_LBRC, KC_SPC, KC_ESC,      OSL_NUM, TSL_NUM, KC_RBRC
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO,   KC_NO,   KC_NO,   KC_NO, KC_NO,   KC_PGUP, KC_HOME, KC_UP,   KC_END,  KC_NO, KC_TRNS,
@@ -784,7 +789,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_NO, KC_NO, KC_9, KC_8, KC_7, KC_NO,   KC_Y, KC_U, KC_I,    KC_O,   KC_P,    KC_NO,
         KC_NO, KC_NO, KC_3, KC_2, KC_1, KC_NO,   KC_H, KC_J, KC_K,    KC_L,   KC_SCLN, KC_NO,
         KC_NO, KC_NO, KC_6, KC_5, KC_4, KC_NO,   KC_N, KC_M, KC_COMM, KC_DOT, KC_SLSH, KC_NO,
-                         KC_NO, KC_0, KC_TRNS,   TSL_NUM, OSL_NUM, KC_NO
+                         KC_NO, KC_0, KC_TRNS,   OSL_NUM, TSL_NUM, KC_NO
     ),
 };
 
