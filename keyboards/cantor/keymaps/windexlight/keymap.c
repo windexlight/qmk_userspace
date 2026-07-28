@@ -737,7 +737,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,  TD(TD_CAPS),
         KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R), _SYM_R(KC_D), _NAV(KC_Y),   _NUM(KC_F), _SYM_L(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_BSPC,
-        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J,         KC_G,       KC_W,         KC_Z,    _FUN(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), QK_LEAD,
+        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J,         KC_G,       KC_W,         KC_Z,    _FUN(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_QUOT), QK_LEAD,
                                                         KC_DEL, KC_SPC, KC_ESC,      QK_REP, KC_UNDS, KC_MINS
     ),
     [_QWERTY_NVIM] = LAYOUT_split_3x6_3(
