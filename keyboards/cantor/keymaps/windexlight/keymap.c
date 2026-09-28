@@ -28,6 +28,7 @@ enum layers {
     _SYM_L_LAYER,
     _SYM_R_LAYER,
     _NUM_LAYER,
+    _NUMB_LAYER,
     _FUN_LAYER,
     _NUM_NVIM_LAYER,
 };
@@ -75,6 +76,7 @@ enum shared_keys {
 #define _SYM_L(x) LT(_SYM_L_LAYER, x)
 #define _SYM_R(x) LT(_SYM_R_LAYER, x)
 #define _NUM(x) LT(_NUM_LAYER, x)
+#define _NUMB(x) LT(_NUMB_LAYER, x)
 #define _FUN(x) LT(_FUN_LAYER, x)
 
 #define HEARTBEAT_TIMEOUT_MS 2000
@@ -697,7 +699,7 @@ uint16_t get_quick_tap_term(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
-const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COMM, KC_QUES);
+const key_override_t comma_key_override = ko_make_basic(MOD_MASK_SHIFT, _NUMB(KC_COMM), KC_QUES);
 const key_override_t dot_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_DOT, KC_EXLM);
 const key_override_t unds_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_UNDS, KC_MINS);
 // const key_override_t coln_key_override = ko_make_basic(MOD_MASK_SHIFT, KC_COLN, KC_SCLN);
@@ -740,13 +742,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAGIC_STURDY] = LAYOUT_split_3x6_3(
         SK_DS,        KC_V,       KC_M,       KC_L,         KC_C,       KC_P,         KC_B,        MAGIC,       KC_U,       KC_O,       KC_Q,     KC_BSPC,
         KC_ENT,  _ALT(KC_S), _CTL(KC_T), _SFT(KC_R), _SYM_R(KC_D), _NAV(KC_Y),   _NUM(KC_F), _SYM_L(KC_N), _SFT(KC_E), _CTL(KC_A), _ALT(KC_I),    KC_QUOT,
-        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J,         KC_G,       KC_W,         KC_Z,    _FUN(KC_H),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), TD(TD_CAPS),
+        KC_TAB,  _GUI(KC_X),      KC_K,       KC_J,         KC_G,       KC_W,         KC_Z,    _FUN(KC_H), _NUMB(KC_COMM), KC_DOT, _GUI(KC_SLSH), TD(TD_CAPS),
                                                        KC_DEL, QK_REP, KC_ESC,      KC_UNDS, KC_SPC, KC_MINS
     ),
     [_QWERTY_NVIM] = LAYOUT_split_3x6_3(
         SK_DS,        KC_Q,       KC_W,       KC_E,         KC_R,       KC_T,         KC_Y,         KC_U,       KC_I,       KC_O,       KC_P,     KC_LBRC,
         KC_ENT,  _ALT(KC_A), _CTL(KC_S), _SFT(KC_D), _SYM_R(KC_F), _NAV(KC_G),   _NUM(KC_H), _SYM_L(KC_J), _SFT(KC_K), _CTL(KC_L), _ALT(KC_SCLN), KC_QUOT,
-        KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M),    KC_COMM,     KC_DOT, _GUI(KC_SLSH), KC_RBRC,
+        KC_TAB,  _GUI(KC_Z),      KC_X,       KC_C,         KC_V,       KC_B,         KC_N,    _FUN(KC_M), _NUMB(KC_COMM), KC_DOT, _GUI(KC_SLSH), KC_RBRC,
                                                       KC_BSLS, KC_SPC, KC_ESC,      OSL_NUM, TSL_NUM, BH_REG
     ),
     [_NAV_LAYER] = LAYOUT_split_3x6_3(
@@ -778,6 +780,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _EXPL,       KC_DOT,  KC_3, KC_2, KC_1, KC_NO,     KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
         _ATAB,       KC_MINS, KC_6, KC_5, KC_4, KC_SLSH,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
                                  KC_TRNS, KC_0, KC_TRNS,   KC_TRNS, KC_TRNS, KC_TRNS
+    ),
+    [_NUMB_LAYER] = LAYOUT_split_3x6_3(
+        KC_NO,       KC_LCBR, KC_9, KC_8, KC_7, KC_RCBR,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
+        _EXPL,       KC_LPRN, KC_3, KC_2, KC_1, KC_RPRN,   KC_NO, KC_NO, KC_LSFT, KC_LCTL, KC_LALT, KC_TRNS,
+        _ATAB,       KC_LBRC, KC_6, KC_5, KC_4, KC_RBRC,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_LGUI, KC_TRNS,
+                                 KC_LABK, KC_0, KC_RABK,   KC_TRNS, KC_TRNS, KC_TRNS
     ),
     [_FUN_LAYER] = LAYOUT_split_3x6_3(
         KC_TRNS, KC_NO, KC_F9, KC_F8, KC_F7, KC_F10,   KC_NO, KC_NO, KC_NO,   KC_NO,   KC_NO,   KC_TRNS,
